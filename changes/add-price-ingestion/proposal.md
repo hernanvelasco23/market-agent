@@ -38,6 +38,8 @@ This change does not include:
 
 The first version will support a small curated set of assets, such as:
 
+- MELI
+- NU
 - NVDA
 - MSFT
 - AMD
