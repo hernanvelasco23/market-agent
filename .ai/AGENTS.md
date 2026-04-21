@@ -90,3 +90,16 @@ Use conventional commits when possible:
 ## Long-term goal
 
 Build a portfolio-quality system that can be confidently presented in interviews as a serious AI engineering project.
+
+## Repository bootstrap guardrails
+
+Before adding any C# production code:
+
+- A valid .NET solution file (`.sln`) must exist.
+- Each source layer must be a real `.csproj` project.
+- Project references must reflect intended architecture boundaries.
+- The repository must build successfully before adding feature code.
+
+Do not create standalone `.cs` files inside `src/` without an associated project.
+
+If the solution does not exist yet, prioritize bootstrapping the .NET structure first.
