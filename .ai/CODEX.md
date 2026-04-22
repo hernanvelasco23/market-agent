@@ -39,3 +39,13 @@ Before coding, review relevant repository context:
 If task is ambiguous:
 - choose smallest safe implementation
 - preserve architecture intent
+
+## Implementation refinement rules
+
+When implementing infrastructure providers:
+
+- Avoid embedding provider-specific symbol transformations inline when they may change later.
+- Extract provider symbol mapping into a dedicated private method or mapper when external symbol formats differ from internal symbols.
+- Prefer small private methods for normalization, mapping, parsing, and validation.
+- Keep provider behavior simple, but isolate likely change points.
+- Do not hardcode fragile assumptions across multiple lines when a single method can centralize them.

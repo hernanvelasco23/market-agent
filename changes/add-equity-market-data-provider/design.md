@@ -35,3 +35,9 @@ EquityMarketDataProvider
 - caching
 - multiple providers
 - fallback sources
+
+## Maintainability expectations
+
+- isolate provider-specific mapping logic
+- keep parsing logic explicit
+- centralize external format assumptions
