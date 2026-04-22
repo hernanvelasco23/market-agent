@@ -5,3 +5,15 @@ Use executable project scaffolding first:
 - projects
 - references
 - build passes
+
+## Maintainability rules
+
+Isolate likely change points.
+
+Examples:
+- external symbol mappings
+- provider-specific field mappings
+- normalization rules
+- parsing rules
+
+Do not scatter provider-specific assumptions inline if they can be centralized in a small method.
