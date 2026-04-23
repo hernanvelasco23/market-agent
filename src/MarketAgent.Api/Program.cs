@@ -1,4 +1,15 @@
+using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.PriceIngestion;
+using MarketAgent.Infrastructure.MarketData;
+using MarketAgent.Infrastructure.Persistence;
+using MarketAgent.Infrastructure.Watchlists;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<IWatchlistProvider, StaticWatchlistProvider>();
+builder.Services.AddHttpClient<IMarketDataProvider, EquityMarketDataProvider>();
+builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
+builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
