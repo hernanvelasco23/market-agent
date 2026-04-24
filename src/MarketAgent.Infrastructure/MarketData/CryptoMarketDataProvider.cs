@@ -27,6 +27,17 @@ public sealed class CryptoMarketDataProvider : IMarketDataProvider
         _httpClient.BaseAddress ??= BaseAddress;
     }
 
+    public bool CanHandle(TrackedAsset asset)
+    {
+        if (asset.AssetType != AssetType.Crypto)
+        {
+            return false;
+        }
+
+        var symbol = NormalizeSymbol(asset.Symbol);
+        return ProviderSymbols.ContainsKey(symbol);
+    }
+
     public async Task<MarketDataResult> GetLatestAsync(
         TrackedAsset asset,
         CancellationToken cancellationToken = default)

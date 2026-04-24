@@ -4,6 +4,8 @@ namespace MarketAgent.Application.Abstractions;
 
 public interface IMarketDataProvider
 {
+    bool CanHandle(TrackedAsset asset);
+
     Task<MarketDataResult> GetLatestAsync(
         TrackedAsset asset,
         CancellationToken cancellationToken = default);
