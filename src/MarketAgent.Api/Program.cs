@@ -13,6 +13,9 @@ builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
 builder.Services.AddHttpClient<CryptoMarketDataProvider>();
 builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
     serviceProvider.GetRequiredService<CryptoMarketDataProvider>());
+builder.Services.AddHttpClient<MepMarketDataProvider>();
+builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
+    serviceProvider.GetRequiredService<MepMarketDataProvider>());
 builder.Services.AddSingleton<IMarketDataProviderResolver, MarketDataProviderResolver>();
 builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
