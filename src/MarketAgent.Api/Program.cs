@@ -24,4 +24,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.MapPost(
+    "/api/ingestion/run",
+    async (IPriceIngestionService priceIngestionService, CancellationToken cancellationToken) =>
+    {
+        var result = await priceIngestionService.ExecuteAsync(cancellationToken);
+        return Results.Ok(result);
+    });
+
 app.Run();
