@@ -38,4 +38,12 @@ app.MapPost(
         return Results.Ok(result);
     });
 
+app.MapGet(
+    "/api/ingestion/snapshots",
+    async (IMarketSnapshotRepository marketSnapshotRepository, CancellationToken cancellationToken) =>
+    {
+        var snapshots = await marketSnapshotRepository.GetAllAsync(cancellationToken);
+        return Results.Ok(snapshots);
+    });
+
 app.Run();

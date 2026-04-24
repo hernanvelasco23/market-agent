@@ -8,6 +8,17 @@ public sealed class InMemoryMarketSnapshotRepository : IMarketSnapshotRepository
     private readonly object _lock = new();
     private readonly List<MarketSnapshot> _snapshots = [];
 
+    public Task<IReadOnlyCollection<MarketSnapshot>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_lock)
+        {
+            return Task.FromResult<IReadOnlyCollection<MarketSnapshot>>(_snapshots.ToArray());
+        }
+    }
+
     public Task SaveAsync(
         MarketSnapshot snapshot,
         CancellationToken cancellationToken = default)
