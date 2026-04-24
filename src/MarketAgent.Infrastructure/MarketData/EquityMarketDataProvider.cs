@@ -30,6 +30,17 @@ public sealed class EquityMarketDataProvider : IMarketDataProvider
         _httpClient.BaseAddress ??= BaseAddress;
     }
 
+    public bool CanHandle(TrackedAsset asset)
+    {
+        if (asset.AssetType is not (AssetType.Equity or AssetType.Etf))
+        {
+            return false;
+        }
+
+        var symbol = NormalizeSymbol(asset.Symbol);
+        return ProviderSymbols.ContainsKey(symbol);
+    }
+
     public async Task<MarketDataResult> GetLatestAsync(
         TrackedAsset asset,
         CancellationToken cancellationToken = default)

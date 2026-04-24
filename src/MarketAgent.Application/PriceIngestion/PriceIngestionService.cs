@@ -7,16 +7,16 @@ namespace MarketAgent.Application.PriceIngestion;
 public sealed class PriceIngestionService : IPriceIngestionService
 {
     private readonly IWatchlistProvider _watchlistProvider;
-    private readonly IMarketDataProvider _marketDataProvider;
+    private readonly IMarketDataProviderResolver _marketDataProviderResolver;
     private readonly IMarketSnapshotRepository _marketSnapshotRepository;
 
     public PriceIngestionService(
         IWatchlistProvider watchlistProvider,
-        IMarketDataProvider marketDataProvider,
+        IMarketDataProviderResolver marketDataProviderResolver,
         IMarketSnapshotRepository marketSnapshotRepository)
     {
         _watchlistProvider = watchlistProvider;
-        _marketDataProvider = marketDataProvider;
+        _marketDataProviderResolver = marketDataProviderResolver;
         _marketSnapshotRepository = marketSnapshotRepository;
     }
 
@@ -32,7 +32,8 @@ public sealed class PriceIngestionService : IPriceIngestionService
         {
             try
             {
-                var marketData = await _marketDataProvider.GetLatestAsync(asset, cancellationToken);
+                var marketDataProvider = _marketDataProviderResolver.Resolve(asset);
+                var marketData = await marketDataProvider.GetLatestAsync(asset, cancellationToken);
                 var snapshot = MapToSnapshot(marketData);
 
                 await _marketSnapshotRepository.SaveAsync(snapshot, cancellationToken);

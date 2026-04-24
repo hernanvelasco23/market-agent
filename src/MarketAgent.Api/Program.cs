@@ -7,7 +7,13 @@ using MarketAgent.Infrastructure.Watchlists;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<IWatchlistProvider, StaticWatchlistProvider>();
-builder.Services.AddHttpClient<IMarketDataProvider, EquityMarketDataProvider>();
+builder.Services.AddHttpClient<EquityMarketDataProvider>();
+builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
+    serviceProvider.GetRequiredService<EquityMarketDataProvider>());
+builder.Services.AddHttpClient<CryptoMarketDataProvider>();
+builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
+    serviceProvider.GetRequiredService<CryptoMarketDataProvider>());
+builder.Services.AddSingleton<IMarketDataProviderResolver, MarketDataProviderResolver>();
 builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
 
