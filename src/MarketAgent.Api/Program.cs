@@ -1,5 +1,7 @@
 using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.Briefing;
 using MarketAgent.Application.PriceIngestion;
+using MarketAgent.Infrastructure.AI;
 using MarketAgent.Infrastructure.MarketData;
 using MarketAgent.Infrastructure.Persistence;
 using MarketAgent.Infrastructure.Watchlists;
@@ -16,9 +18,14 @@ builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
 builder.Services.AddHttpClient<MepMarketDataProvider>();
 builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
     serviceProvider.GetRequiredService<MepMarketDataProvider>());
+builder.Services.AddHttpClient(nameof(SemanticKernelMarketBriefingGenerator));
 builder.Services.AddSingleton<IMarketDataProviderResolver, MarketDataProviderResolver>();
 builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
+builder.Services.AddScoped<IMarketBriefingService, MarketBriefingService>();
+builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefingGenerator>();
+builder.Services.Configure<AzureOpenAIOptions>(
+    builder.Configuration.GetSection(AzureOpenAIOptions.SectionName));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -47,6 +54,14 @@ app.MapGet(
     {
         var snapshots = await marketSnapshotRepository.GetAllAsync(cancellationToken);
         return Results.Ok(snapshots);
+    });
+
+app.MapPost(
+    "/api/briefing/run",
+    async (IMarketBriefingService marketBriefingService, CancellationToken cancellationToken) =>
+    {
+        var result = await marketBriefingService.GenerateAsync(cancellationToken);
+        return Results.Ok(result);
     });
 
 app.Run();
