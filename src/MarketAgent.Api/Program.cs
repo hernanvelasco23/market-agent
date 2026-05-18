@@ -1,6 +1,7 @@
 using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Briefing;
 using MarketAgent.Application.PriceIngestion;
+using MarketAgent.Application.Signals;
 using MarketAgent.Infrastructure.AI;
 using MarketAgent.Infrastructure.MarketData;
 using MarketAgent.Infrastructure.Persistence;
@@ -24,6 +25,8 @@ builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotR
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
 builder.Services.AddScoped<IMarketBriefingService, MarketBriefingService>();
 builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefingGenerator>();
+builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>();
+builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
 builder.Services.Configure<AzureOpenAIOptions>(
     builder.Configuration.GetSection(AzureOpenAIOptions.SectionName));
 
@@ -61,6 +64,14 @@ app.MapPost(
     async (IMarketBriefingService marketBriefingService, CancellationToken cancellationToken) =>
     {
         var result = await marketBriefingService.GenerateAsync(cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapPost(
+    "/api/signals/run",
+    async (IMarketSignalService marketSignalService, CancellationToken cancellationToken) =>
+    {
+        var result = await marketSignalService.GenerateAsync(cancellationToken);
         return Results.Ok(result);
     });
 

@@ -7,5 +7,6 @@ public interface IMarketBriefingGenerator
 {
     Task<MarketBriefingResult> GenerateAsync(
         IReadOnlyCollection<MarketSnapshot> snapshots,
+        IReadOnlyCollection<MarketSignal> signals,
         CancellationToken cancellationToken = default);
 }
