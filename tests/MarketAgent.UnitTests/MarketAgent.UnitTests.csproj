@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\MarketAgent.Application\MarketAgent.Application.csproj" />
     <ProjectReference Include="..\..\src\MarketAgent.Domain\MarketAgent.Domain.csproj" />
   </ItemGroup>
 

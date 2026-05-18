@@ -7,13 +7,16 @@ public sealed class MarketBriefingService : IMarketBriefingService
 {
     private readonly IMarketSnapshotRepository _marketSnapshotRepository;
     private readonly IMarketBriefingGenerator _marketBriefingGenerator;
+    private readonly IMarketSignalAnalyzer _marketSignalAnalyzer;
 
     public MarketBriefingService(
         IMarketSnapshotRepository marketSnapshotRepository,
-        IMarketBriefingGenerator marketBriefingGenerator)
+        IMarketBriefingGenerator marketBriefingGenerator,
+        IMarketSignalAnalyzer marketSignalAnalyzer)
     {
         _marketSnapshotRepository = marketSnapshotRepository;
         _marketBriefingGenerator = marketBriefingGenerator;
+        _marketSignalAnalyzer = marketSignalAnalyzer;
     }
 
     public async Task<MarketBriefingResult> GenerateAsync(
@@ -25,12 +28,19 @@ public sealed class MarketBriefingService : IMarketBriefingService
         {
             return new MarketBriefingResult(
                 DateTime.UtcNow,
+                "No data",
                 "No market snapshots are available yet.",
+                "No calculated market signals are available yet.",
+                [],
+                [],
+                [],
                 [],
                 [],
                 []);
         }
 
-        return await _marketBriefingGenerator.GenerateAsync(snapshots, cancellationToken);
+        var signals = _marketSignalAnalyzer.Analyze(snapshots);
+
+        return await _marketBriefingGenerator.GenerateAsync(snapshots, signals, cancellationToken);
     }
 }
