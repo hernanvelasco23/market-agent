@@ -12,6 +12,11 @@ namespace MarketAgent.Infrastructure.AI;
 
 public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGenerator
 {
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly AzureOpenAIOptions _options;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILoggerFactory _loggerFactory;
@@ -116,7 +121,7 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
     private static ParsedBriefing ParseBriefing(string responseContent)
     {
         var json = ExtractJson(responseContent);
-        var parsed = JsonSerializer.Deserialize<ParsedBriefing>(json);
+        var parsed = JsonSerializer.Deserialize<ParsedBriefing>(json, JsonSerializerOptions);
 
         if (parsed is null || string.IsNullOrWhiteSpace(parsed.Summary))
         {
