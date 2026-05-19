@@ -8,6 +8,16 @@ public sealed class StaticWatchlistProvider : IWatchlistProvider
 {
     private static readonly IReadOnlyCollection<TrackedAsset> Assets =
     [
+        new("MU", AssetType.Equity, "USD"),
+        new("AMZN", AssetType.Equity, "USD"),
+        new("V", AssetType.Equity, "USD"),
+        new("ASTS", AssetType.Equity, "USD"),
+        new("NKE", AssetType.Equity, "USD"),
+        new("PLTR", AssetType.Equity, "USD"),
+        new("PATH", AssetType.Equity, "USD"),
+        new("META", AssetType.Equity, "USD"),
+        new("GOOG", AssetType.Equity, "USD"),
+        new("RKLB", AssetType.Equity, "USD"),
         new("MELI", AssetType.Equity, "USD"),
         new("TSLA", AssetType.Equity, "USD"),
         new("NU", AssetType.Equity, "USD"),

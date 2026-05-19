@@ -24,10 +24,31 @@ public sealed class MarketSignal
         decimal? averageVolume20,
         bool? aboveVwap,
         decimal? relativeStrengthVsSpy,
+        decimal? recoveryFromLowPercent,
+        bool strongIntradayRecovery,
+        decimal? gapPercent,
+        bool gapRecovery,
+        decimal? ema20Slope,
+        decimal? ema50Slope,
+        bool strongTrendSlope,
+        decimal? distanceFromEma20Percent,
+        string? extensionRisk,
+        bool momentumContinuation,
         decimal? drawdown,
         decimal? entry,
         decimal? stop,
         decimal? target,
+        decimal? takeProfit1,
+        decimal? takeProfit2,
+        decimal? takeProfit3,
+        decimal? riskReward1,
+        decimal? riskReward2,
+        decimal? riskReward3,
+        decimal? riskPerShare,
+        decimal? maxRiskAmount,
+        decimal? suggestedPositionSize,
+        decimal? regimeSizingMultiplier,
+        IReadOnlyCollection<MarketSignalScoreFactor> scoreBreakdown,
         DateTime generatedAtUtc)
     {
         if (string.IsNullOrWhiteSpace(symbol))
@@ -75,6 +96,8 @@ public sealed class MarketSignal
             throw new ArgumentException("Market signal generation time must be UTC.", nameof(generatedAtUtc));
         }
 
+        ArgumentNullException.ThrowIfNull(scoreBreakdown);
+
         Symbol = symbol.Trim().ToUpperInvariant();
         AssetType = assetType;
         SignalType = signalType;
@@ -94,10 +117,31 @@ public sealed class MarketSignal
         AverageVolume20 = averageVolume20;
         AboveVwap = aboveVwap;
         RelativeStrengthVsSpy = relativeStrengthVsSpy;
+        RecoveryFromLowPercent = recoveryFromLowPercent;
+        StrongIntradayRecovery = strongIntradayRecovery;
+        GapPercent = gapPercent;
+        GapRecovery = gapRecovery;
+        Ema20Slope = ema20Slope;
+        Ema50Slope = ema50Slope;
+        StrongTrendSlope = strongTrendSlope;
+        DistanceFromEma20Percent = distanceFromEma20Percent;
+        ExtensionRisk = extensionRisk;
+        MomentumContinuation = momentumContinuation;
         Drawdown = drawdown;
         Entry = entry;
         Stop = stop;
         Target = target;
+        TakeProfit1 = takeProfit1;
+        TakeProfit2 = takeProfit2;
+        TakeProfit3 = takeProfit3;
+        RiskReward1 = riskReward1;
+        RiskReward2 = riskReward2;
+        RiskReward3 = riskReward3;
+        RiskPerShare = riskPerShare;
+        MaxRiskAmount = maxRiskAmount;
+        SuggestedPositionSize = suggestedPositionSize;
+        RegimeSizingMultiplier = regimeSizingMultiplier;
+        ScoreBreakdown = scoreBreakdown;
         GeneratedAtUtc = generatedAtUtc;
     }
 
@@ -139,6 +183,26 @@ public sealed class MarketSignal
 
     public decimal? RelativeStrengthVsSpy { get; }
 
+    public decimal? RecoveryFromLowPercent { get; }
+
+    public bool StrongIntradayRecovery { get; }
+
+    public decimal? GapPercent { get; }
+
+    public bool GapRecovery { get; }
+
+    public decimal? Ema20Slope { get; }
+
+    public decimal? Ema50Slope { get; }
+
+    public bool StrongTrendSlope { get; }
+
+    public decimal? DistanceFromEma20Percent { get; }
+
+    public string? ExtensionRisk { get; }
+
+    public bool MomentumContinuation { get; }
+
     public decimal? Drawdown { get; }
 
     public decimal? Entry { get; }
@@ -146,6 +210,28 @@ public sealed class MarketSignal
     public decimal? Stop { get; }
 
     public decimal? Target { get; }
+
+    public decimal? TakeProfit1 { get; }
+
+    public decimal? TakeProfit2 { get; }
+
+    public decimal? TakeProfit3 { get; }
+
+    public decimal? RiskReward1 { get; }
+
+    public decimal? RiskReward2 { get; }
+
+    public decimal? RiskReward3 { get; }
+
+    public decimal? RiskPerShare { get; }
+
+    public decimal? MaxRiskAmount { get; }
+
+    public decimal? SuggestedPositionSize { get; }
+
+    public decimal? RegimeSizingMultiplier { get; }
+
+    public IReadOnlyCollection<MarketSignalScoreFactor> ScoreBreakdown { get; }
 
     public DateTime GeneratedAtUtc { get; }
 }

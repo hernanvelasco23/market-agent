@@ -1,6 +1,7 @@
 using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Briefing;
 using MarketAgent.Application.Historical;
+using MarketAgent.Application.Models;
 using MarketAgent.Application.PriceIngestion;
 using MarketAgent.Application.Signals;
 using MarketAgent.Infrastructure.AI;
@@ -35,6 +36,8 @@ builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefin
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>();
 builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
+builder.Services.AddSingleton(_ =>
+    builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
 builder.Services.Configure<HistoricalMarketDataOptions>(
     builder.Configuration.GetSection(HistoricalMarketDataOptions.SectionName));
 builder.Services.Configure<AzureOpenAIOptions>(

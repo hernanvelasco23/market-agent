@@ -13,6 +13,16 @@ public sealed class EquityMarketDataProvider : IMarketDataProvider
     private static readonly IReadOnlyDictionary<string, string> ProviderSymbols =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            ["MU"] = "mu.us",
+            ["AMZN"] = "amzn.us",
+            ["V"] = "v.us",
+            ["ASTS"] = "asts.us",
+            ["NKE"] = "nke.us",
+            ["PLTR"] = "pltr.us",
+            ["PATH"] = "path.us",
+            ["META"] = "meta.us",
+            ["GOOG"] = "goog.us",
+            ["RKLB"] = "rklb.us",
             ["NVDA"] = "nvda.us",
             ["MSFT"] = "msft.us",
             ["AMD"] = "amd.us",
