@@ -157,7 +157,7 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         foreach (var signal in signals.OrderByDescending(item => item.Score))
         {
             promptBuilder.AppendLine(
-                $"- Symbol: {signal.Symbol}; Type: {signal.AssetType}; SignalType: {signal.SignalType}; SetupType: {signal.SetupType}; Score: {signal.Score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; Reason: {signal.Reason}; Action: {signal.Action}; Timeframe: {signal.Timeframe}; Confidence: {signal.Confidence}; Trend: {signal.Trend.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; EMA9: {FormatOptional(signal.Ema9)}; EMA20: {FormatOptional(signal.Ema20)}; EMA50: {FormatOptional(signal.Ema50)}; RSI14: {FormatOptional(signal.Rsi)}; ATR14: {FormatOptional(signal.Atr14)}; AverageVolume10: {FormatOptional(signal.AverageVolume10)}; AverageVolume20: {FormatOptional(signal.AverageVolume20)}; AboveVwap: {FormatOptional(signal.AboveVwap)}; RelativeStrengthVsSpy: {FormatOptional(signal.RelativeStrengthVsSpy)}; RecoveryFromLowPercent: {FormatOptional(signal.RecoveryFromLowPercent)}; StrongIntradayRecovery: {signal.StrongIntradayRecovery}; GapPercent: {FormatOptional(signal.GapPercent)}; GapRecovery: {signal.GapRecovery}; EMA20Slope: {FormatOptional(signal.Ema20Slope)}; EMA50Slope: {FormatOptional(signal.Ema50Slope)}; StrongTrendSlope: {signal.StrongTrendSlope}; DistanceFromEma20Percent: {FormatOptional(signal.DistanceFromEma20Percent)}; ExtensionRisk: {signal.ExtensionRisk ?? "n/a"}; MomentumContinuation: {signal.MomentumContinuation}; Drawdown: {FormatOptional(signal.Drawdown)}; Entry: {FormatOptional(signal.Entry)}; Stop: {FormatOptional(signal.Stop)}; Target: {FormatOptional(signal.Target)}; TP1: {FormatOptional(signal.TakeProfit1)}; TP2: {FormatOptional(signal.TakeProfit2)}; TP3: {FormatOptional(signal.TakeProfit3)}; RR1: {FormatOptional(signal.RiskReward1)}; RR2: {FormatOptional(signal.RiskReward2)}; RR3: {FormatOptional(signal.RiskReward3)}; RiskPerShare: {FormatOptional(signal.RiskPerShare)}; MaxRiskAmount: {FormatOptional(signal.MaxRiskAmount)}; SuggestedPositionSize: {FormatOptional(signal.SuggestedPositionSize)}; RegimeSizingMultiplier: {FormatOptional(signal.RegimeSizingMultiplier)}; ScoreBreakdown: {FormatScoreBreakdown(signal.ScoreBreakdown)}; GeneratedAtUtc: {signal.GeneratedAtUtc:O}");
+                $"- Symbol: {signal.Symbol}; Type: {signal.AssetType}; SignalType: {signal.SignalType}; SetupType: {signal.SetupType}; Score: {signal.Score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; Reason: {signal.Reason}; Action: {signal.Action}; Timeframe: {signal.Timeframe}; Confidence: {signal.Confidence}; Trend: {signal.Trend.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; EMA9: {FormatOptional(signal.Ema9)}; EMA20: {FormatOptional(signal.Ema20)}; EMA50: {FormatOptional(signal.Ema50)}; RSI14: {FormatOptional(signal.Rsi)}; ATR14: {FormatOptional(signal.Atr14)}; AverageVolume10: {FormatOptional(signal.AverageVolume10)}; AverageVolume20: {FormatOptional(signal.AverageVolume20)}; AboveVwap: {FormatOptional(signal.AboveVwap)}; RelativeStrengthVsSpy: {FormatOptional(signal.RelativeStrengthVsSpy)}; RelativeVolume: {FormatOptional(signal.RelativeVolume)}; RecoveryFromLowPercent: {FormatOptional(signal.RecoveryFromLowPercent)}; StrongIntradayRecovery: {signal.StrongIntradayRecovery}; GapPercent: {FormatOptional(signal.GapPercent)}; GapRecovery: {signal.GapRecovery}; EMA20Slope: {FormatOptional(signal.Ema20Slope)}; EMA50Slope: {FormatOptional(signal.Ema50Slope)}; StrongTrendSlope: {signal.StrongTrendSlope}; DistanceFromEma20Percent: {FormatOptional(signal.DistanceFromEma20Percent)}; ExtensionFromEma20Percent: {FormatOptional(signal.ExtensionFromEma20Percent)}; ExtensionRisk: {signal.ExtensionRisk ?? "n/a"}; MomentumContinuation: {signal.MomentumContinuation}; Drawdown: {FormatOptional(signal.Drawdown)}; Entry: {FormatOptional(signal.Entry)}; Stop: {FormatOptional(signal.Stop)}; Target: {FormatOptional(signal.Target)}; TP1: {FormatOptional(signal.TakeProfit1)}; TP2: {FormatOptional(signal.TakeProfit2)}; TP3: {FormatOptional(signal.TakeProfit3)}; RR1: {FormatOptional(signal.RiskReward1)}; RR2: {FormatOptional(signal.RiskReward2)}; RR3: {FormatOptional(signal.RiskReward3)}; RiskPerShare: {FormatOptional(signal.RiskPerShare)}; MaxRiskAmount: {FormatOptional(signal.MaxRiskAmount)}; SuggestedPositionSize: {FormatOptional(signal.SuggestedPositionSize)}; RegimeSizingMultiplier: {FormatOptional(signal.RegimeSizingMultiplier)}; ScoreBreakdown: {FormatScoreBreakdown(signal.ScoreBreakdown)}; GeneratedAtUtc: {signal.GeneratedAtUtc:O}");
         }
 
         return promptBuilder.ToString();
@@ -198,6 +198,7 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Atr14,
                 signal.AboveVwap,
                 signal.RelativeStrengthVsSpy,
+                signal.RelativeVolume,
                 signal.RecoveryFromLowPercent,
                 signal.StrongIntradayRecovery,
                 signal.GapPercent,
@@ -206,6 +207,7 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Ema50Slope,
                 signal.StrongTrendSlope,
                 signal.DistanceFromEma20Percent,
+                signal.ExtensionFromEma20Percent,
                 signal.ExtensionRisk,
                 signal.MomentumContinuation,
                 signal.Entry,
@@ -258,6 +260,9 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Ema50Slope,
                 signal.StrongTrendSlope,
                 signal.DistanceFromEma20Percent,
+                signal.ExtensionFromEma20Percent,
+                signal.RelativeStrengthVsSpy,
+                signal.RelativeVolume,
                 signal.ExtensionRisk,
                 signal.MomentumContinuation,
                 signal.Action,
@@ -299,6 +304,9 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                     signal.Ema50Slope,
                     signal.StrongTrendSlope,
                     signal.DistanceFromEma20Percent,
+                    signal.ExtensionFromEma20Percent,
+                    signal.RelativeStrengthVsSpy,
+                    signal.RelativeVolume,
                     signal.ExtensionRisk,
                     signal.MomentumContinuation,
                     true,
@@ -333,6 +341,9 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Ema50Slope,
                 signal.StrongTrendSlope,
                 signal.DistanceFromEma20Percent,
+                signal.ExtensionFromEma20Percent,
+                signal.RelativeStrengthVsSpy,
+                signal.RelativeVolume,
                 signal.ExtensionRisk,
                 signal.MomentumContinuation))
             .ToArray();

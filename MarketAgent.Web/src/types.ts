@@ -25,6 +25,7 @@ export interface DashboardSignal {
   atr14?: number | null;
   aboveVwap?: boolean | null;
   relativeStrengthVsSpy?: number | null;
+  relativeVolume?: number | null;
   recoveryFromLowPercent?: number | null;
   strongIntradayRecovery?: boolean;
   gapPercent?: number | null;
@@ -33,6 +34,7 @@ export interface DashboardSignal {
   ema50Slope?: number | null;
   strongTrendSlope?: boolean;
   distanceFromEma20Percent?: number | null;
+  extensionFromEma20Percent?: number | null;
   extensionRisk?: string | null;
   momentumContinuation?: boolean;
   entry?: number | null;
@@ -94,6 +96,7 @@ export interface ApiMarketSignal {
   atr14?: number | null;
   aboveVwap?: boolean | null;
   relativeStrengthVsSpy?: number | null;
+  relativeVolume?: number | null;
   recoveryFromLowPercent?: number | null;
   strongIntradayRecovery?: boolean;
   gapPercent?: number | null;
@@ -102,6 +105,7 @@ export interface ApiMarketSignal {
   ema50Slope?: number | null;
   strongTrendSlope?: boolean;
   distanceFromEma20Percent?: number | null;
+  extensionFromEma20Percent?: number | null;
   extensionRisk?: string | null;
   momentumContinuation?: boolean;
   entry?: number | null;

@@ -8,6 +8,10 @@ namespace MarketAgent.Application.Signals;
 public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
 {
     private const int RsiPeriod = 14;
+    private const decimal PositiveEma20SlopeThreshold = 0.5m;
+    private const decimal PositiveEma50SlopeThreshold = 0.3m;
+    private const decimal StrongEma20SlopeThreshold = 1.0m;
+    private const decimal StrongEma50SlopeThreshold = 0.5m;
     private readonly ITechnicalIndicatorService _technicalIndicatorService;
     private readonly RiskPositionOptions _riskPositionOptions;
 
@@ -35,7 +39,7 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             .GroupBy(candle => candle.Symbol)
             .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
         var marketRegime = DetermineMarketRegime(candlesBySymbol);
-        var spyChange = CalculateSpyChange(candlesBySymbol);
+        var spyChange = CalculateSpyChange(snapshots, candlesBySymbol);
 
         return snapshots
             .GroupBy(snapshot => snapshot.Symbol)
@@ -182,7 +186,8 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
 
         var roundedScore = Round(Clamp(score, 0m, 100m));
         var roundedTrend = Round(Clamp(trend, -1m, 1m));
-        var relativeStrengthVsSpy = CalculateRelativeStrengthVsSpy(latest, spyChange);
+        var relativeStrengthVsSpy = CalculateRelativeStrengthVsSpy(latest, candles, spyChange);
+        var relativeVolume = CalculateRelativeVolume(latest, indicators);
         ApplyRelativeStrengthScoring(relativeStrengthVsSpy, reasons, scoreBreakdown, ref roundedScore);
         var hasMixedSignals = HasMixedSignals(reasons);
         var momentumContinuation = IsMomentumContinuation(
@@ -242,6 +247,7 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             indicators.AverageVolume20,
             null,
             Round(relativeStrengthVsSpy),
+            Round(relativeVolume),
             Round(ToPercent(recoveryFromLowPercent)),
             strongIntradayRecovery,
             Round(gapPercent),
@@ -273,23 +279,34 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
     }
 
     private static decimal? CalculateSpyChange(
+        IReadOnlyCollection<MarketSnapshot> snapshots,
         IReadOnlyDictionary<string, MarketCandle[]> candlesBySymbol)
     {
-        if (!candlesBySymbol.TryGetValue("SPY", out var spyCandles) || spyCandles.Length < 2)
+        if (candlesBySymbol.TryGetValue("SPY", out var spyCandles) && spyCandles.Length >= 2)
         {
-            return null;
+            var ordered = spyCandles
+                .OrderBy(candle => candle.OccurredAtUtc)
+                .TakeLast(2)
+                .ToArray();
+
+            return CalculatePercentChange(ordered[^1].Close, ordered[0].Close);
         }
 
-        var ordered = spyCandles
-            .OrderBy(candle => candle.OccurredAtUtc)
-            .TakeLast(2)
-            .ToArray();
+        var latestSpySnapshot = snapshots
+            .Where(snapshot => snapshot.Symbol.Equals("SPY", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(snapshot => snapshot.CapturedAtUtc)
+            .FirstOrDefault();
 
-        return CalculatePercentChange(ordered[^1].Close, ordered[0].Close);
+        return latestSpySnapshot is null
+            ? null
+            : CalculatePercentChange(
+                latestSpySnapshot.Price,
+                FirstPositive(latestSpySnapshot.PreviousClose, latestSpySnapshot.OpenPrice));
     }
 
     private static decimal? CalculateRelativeStrengthVsSpy(
         MarketSnapshot snapshot,
+        IReadOnlyCollection<MarketCandle> candles,
         decimal? spyChange)
     {
         if (spyChange is null ||
@@ -298,11 +315,41 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             return null;
         }
 
-        var snapshotChange = CalculatePercentChange(snapshot.Price, snapshot.PreviousClose);
+        var snapshotChange = CalculatePercentChange(
+            snapshot.Price,
+            FirstPositive(
+                snapshot.PreviousClose,
+                GetPreviousCloseFromCandles(candles, snapshot.CapturedAtUtc),
+                snapshot.OpenPrice));
 
         return snapshotChange is null
             ? null
             : snapshotChange.Value - spyChange.Value;
+    }
+
+    private static decimal? GetPreviousCloseFromCandles(
+        IReadOnlyCollection<MarketCandle> candles,
+        DateTime capturedAtUtc)
+    {
+        return candles
+            .Where(candle => candle.OccurredAtUtc.Date < capturedAtUtc.Date)
+            .OrderByDescending(candle => candle.OccurredAtUtc)
+            .Select(candle => (decimal?)candle.Close)
+            .FirstOrDefault();
+    }
+
+    private static decimal? FirstPositive(params decimal?[] values)
+    {
+        return values.FirstOrDefault(value => value is > 0m);
+    }
+
+    private static decimal? CalculateRelativeVolume(
+        MarketSnapshot snapshot,
+        TechnicalIndicators indicators)
+    {
+        return snapshot.Volume is > 0 && indicators.AverageVolume20 is > 0
+            ? snapshot.Volume.Value / indicators.AverageVolume20.Value
+            : null;
     }
 
     private static bool HasMixedSignals(IReadOnlyCollection<string> reasons)
@@ -467,27 +514,28 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             }
         }
 
-        if (ema20Slope is > 0.05m)
+        if (IsStrongTrendSlope(ema20Slope, ema50Slope))
+        {
+            AddScoreFactor(scoreBreakdown, reasons, "Strong positive EMA20 and EMA50 slope", 15m, ref score);
+            return;
+        }
+
+        if (ema20Slope is > PositiveEma20SlopeThreshold)
         {
             AddScoreFactor(scoreBreakdown, reasons, "Positive EMA20 slope", 8m, ref score);
         }
-        else if (ema20Slope is < -0.05m)
+        else if (ema20Slope is < -PositiveEma20SlopeThreshold)
         {
             AddScoreFactor(scoreBreakdown, reasons, "Negative EMA20 slope", -8m, ref score);
         }
 
-        if (ema50Slope is > 0.05m)
+        if (ema50Slope is > PositiveEma50SlopeThreshold)
         {
             AddScoreFactor(scoreBreakdown, reasons, "Positive EMA50 slope", 10m, ref score);
         }
-        else if (ema50Slope is < -0.05m)
+        else if (ema50Slope is < -PositiveEma50SlopeThreshold)
         {
             AddScoreFactor(scoreBreakdown, reasons, "Negative EMA50 slope", -10m, ref score);
-        }
-
-        if (IsStrongTrendSlope(ema20Slope, ema50Slope))
-        {
-            AddScoreFactor(scoreBreakdown, reasons, "Strong positive EMA20 and EMA50 slope", 15m, ref score);
         }
     }
 
@@ -830,7 +878,7 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
 
     private static bool IsStrongTrendSlope(decimal? ema20Slope, decimal? ema50Slope)
     {
-        return ema20Slope is > 0.20m && ema50Slope is > 0.10m;
+        return ema20Slope is > StrongEma20SlopeThreshold && ema50Slope is > StrongEma50SlopeThreshold;
     }
 
     private static bool IsMomentumContinuation(

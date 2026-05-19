@@ -24,6 +24,7 @@ public sealed class MarketSignal
         decimal? averageVolume20,
         bool? aboveVwap,
         decimal? relativeStrengthVsSpy,
+        decimal? relativeVolume,
         decimal? recoveryFromLowPercent,
         bool strongIntradayRecovery,
         decimal? gapPercent,
@@ -117,6 +118,7 @@ public sealed class MarketSignal
         AverageVolume20 = averageVolume20;
         AboveVwap = aboveVwap;
         RelativeStrengthVsSpy = relativeStrengthVsSpy;
+        RelativeVolume = relativeVolume;
         RecoveryFromLowPercent = recoveryFromLowPercent;
         StrongIntradayRecovery = strongIntradayRecovery;
         GapPercent = gapPercent;
@@ -183,6 +185,8 @@ public sealed class MarketSignal
 
     public decimal? RelativeStrengthVsSpy { get; }
 
+    public decimal? RelativeVolume { get; }
+
     public decimal? RecoveryFromLowPercent { get; }
 
     public bool StrongIntradayRecovery { get; }
@@ -198,6 +202,8 @@ public sealed class MarketSignal
     public bool StrongTrendSlope { get; }
 
     public decimal? DistanceFromEma20Percent { get; }
+
+    public decimal? ExtensionFromEma20Percent => DistanceFromEma20Percent;
 
     public string? ExtensionRisk { get; }
 

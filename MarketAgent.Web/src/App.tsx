@@ -246,6 +246,9 @@ function SignalsTable({
               <th>Action</th>
               <th>Confidence</th>
               <th>Timeframe</th>
+              <th>RS</th>
+              <th>RVOL</th>
+              <th>EXT</th>
               <th>RSI14</th>
               <th>EMA9</th>
               <th>EMA20</th>
@@ -266,6 +269,9 @@ function SignalsTable({
                 <td><Pill value={signal.action} /></td>
                 <td>{signal.confidence}</td>
                 <td>{signal.timeframe}</td>
+                <td><SignalMetric value={signal.relativeStrengthVsSpy} kind="rs" suffix="%" /></td>
+                <td><SignalMetric value={signal.relativeVolume} kind="rvol" /></td>
+                <td><SignalMetric value={getEma20Extension(signal)} kind="ext" suffix="%" /></td>
                 <td>{formatNumber(signal.rsi14)}</td>
                 <td>{formatMoney(signal.ema9)}</td>
                 <td>{formatMoney(signal.ema20)}</td>
@@ -312,6 +318,9 @@ function SignalDetail({ signal }: { signal: DashboardSignal | null }) {
         <Metric label="RR1" value={formatNumber(signal.riskReward1)} />
         <Metric label="RR2" value={formatNumber(signal.riskReward2)} />
         <Metric label="RR3" value={formatNumber(signal.riskReward3)} />
+        <Metric label="RS vs SPY" value={formatPercent(signal.relativeStrengthVsSpy)} />
+        <Metric label="RVOL" value={formatNumber(signal.relativeVolume)} />
+        <Metric label="EMA20 Extension" value={formatPercent(getEma20Extension(signal))} />
         <Metric label="Recovery" value={formatPercent(signal.recoveryFromLowPercent)} />
         <Metric label="Gap" value={formatPercent(signal.gapPercent)} />
         <Metric label="EMA20 Slope" value={formatPercent(signal.ema20Slope)} />
@@ -368,6 +377,43 @@ function Pill({ value }: { value: string }) {
   return <span className={`pill ${tone}`}>{value}</span>;
 }
 
+function SignalMetric({
+  value,
+  kind,
+  suffix
+}: {
+  value?: number | null;
+  kind: "rs" | "rvol" | "ext";
+  suffix?: string;
+}) {
+  return <span className={`metric-chip ${metricTone(value, kind)}`}>{formatMetric(value, suffix)}</span>;
+}
+
+function metricTone(value: number | null | undefined, kind: "rs" | "rvol" | "ext") {
+  if (value == null) {
+    return "metric-neutral";
+  }
+
+  if (kind === "rs") {
+    if (value > 3) return "metric-strong";
+    if (value > 1) return "metric-good";
+    if (value >= 0) return "metric-neutral";
+    return "metric-risk";
+  }
+
+  if (kind === "rvol") {
+    if (value > 3) return "metric-strong";
+    if (value > 2) return "metric-good";
+    if (value > 1) return "metric-neutral";
+    return "metric-muted";
+  }
+
+  if (value > 7) return "metric-risk";
+  if (value >= 3) return "metric-watch";
+  if (value >= 0) return "metric-good";
+  return "metric-muted";
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -385,4 +431,12 @@ function formatNumber(value?: number | null) {
 
 function formatPercent(value?: number | null) {
   return value == null ? "n/a" : `${formatNumber(value)}%`;
+}
+
+function formatMetric(value?: number | null, suffix = "") {
+  return value == null ? "n/a" : `${formatNumber(value)}${suffix}`;
+}
+
+function getEma20Extension(signal: DashboardSignal) {
+  return signal.extensionFromEma20Percent ?? signal.distanceFromEma20Percent;
 }

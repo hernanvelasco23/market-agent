@@ -3,12 +3,19 @@ using MarketAgent.Application.Models;
 using MarketAgent.Application.Signals;
 using MarketAgent.Domain.Entities;
 using MarketAgent.Domain.Enums;
+using Xunit.Abstractions;
 
 namespace MarketAgent.UnitTests;
 
 public sealed class TechnicalMarketSignalAnalyzerTests
 {
     private readonly TechnicalMarketSignalAnalyzer _analyzer = new(new EmptyTechnicalIndicatorService(), new RiskPositionOptions());
+    private readonly ITestOutputHelper _output;
+
+    public TechnicalMarketSignalAnalyzerTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
 
     [Fact]
     public void Analyze_ReturnsBullishSignal_WhenPriceShowsRelativeStrength()
@@ -181,7 +188,7 @@ public sealed class TechnicalMarketSignalAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_RewardsPositiveEmaSlope()
+    public void Analyze_RewardsStrongEmaSlopeWithoutStackingIndividualSlopeBonuses()
     {
         var analyzer = CreateAnalyzer(new TechnicalIndicators(
             Ema9: 104m,
@@ -205,8 +212,161 @@ public sealed class TechnicalMarketSignalAnalyzerTests
         Assert.True(signal.Ema20Slope > 0m);
         Assert.True(signal.Ema50Slope > 0m);
         Assert.True(signal.StrongTrendSlope);
-        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Positive EMA20 slope" && factor.Points == 8m);
-        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Positive EMA50 slope" && factor.Points == 10m);
+        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Strong positive EMA20 and EMA50 slope" && factor.Points == 15m);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Positive EMA20 slope");
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Positive EMA50 slope");
+    }
+
+    [Fact]
+    public void Analyze_DoesNotClampCommonBullishSetupTo100()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: 102m,
+            Ema20: 100m,
+            Ema50: 98m,
+            Rsi14: 62m,
+            Atr14: 2m,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "MSFT",
+            price: 103m,
+            openPrice: 102m,
+            highPrice: 104m,
+            lowPrice: 100m,
+            previousClose: 101m);
+        var candles = CreateTrendingCandles("MSFT", start: 100m, step: 0m, count: 60);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot], candles));
+
+        // Regression: a normal bullish day can earn constructive points, but should not
+        // automatically saturate at 100 just because historical indicators are present.
+        var unclampedContribution = signal.ScoreBreakdown.Sum(factor => factor.Points);
+        var unclampedScore = 50m + unclampedContribution;
+        var breakdown = string.Join(
+            Environment.NewLine,
+            signal.ScoreBreakdown.Select(factor => $"  {factor.Label}: {factor.Points:+0.##;-0.##}"));
+
+        _output.WriteLine($"Symbol: {signal.Symbol}");
+        _output.WriteLine($"Final score: {signal.Score}");
+        _output.WriteLine($"Unclamped score approximation: {unclampedScore}");
+        _output.WriteLine("Score contribution breakdown:");
+        _output.WriteLine(breakdown);
+
+        Assert.InRange(signal.Score, 70m, 99.99m);
+        Assert.Equal(unclampedScore, signal.Score);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Strong positive EMA20 and EMA50 slope");
+    }
+
+    [Fact]
+    public void Analyze_CalculatesRelativeStrengthRelativeVolumeAndEma20Extension()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: 103m,
+            Ema20: 100m,
+            Ema50: 96m,
+            Rsi14: 58m,
+            Atr14: 2m,
+            AverageVolume10: 750000m,
+            AverageVolume20: 500000m));
+        var snapshot = CreateSnapshot(
+            "MSFT",
+            price: 105m,
+            openPrice: 104m,
+            highPrice: 106m,
+            lowPrice: 101m,
+            previousClose: 100m);
+        var spyCandles = CreateFlatSpyCandles(previousClose: 100m, latestClose: 102m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot], spyCandles));
+
+        Assert.Equal(3m, signal.RelativeStrengthVsSpy);
+        Assert.Equal(2m, signal.RelativeVolume);
+        Assert.Equal(5m, signal.DistanceFromEma20Percent);
+        Assert.Equal(5m, signal.ExtensionFromEma20Percent);
+    }
+
+    [Fact]
+    public void Analyze_CalculatesRelativeStrengthFromSpySnapshot_WhenSpyCandlesAreMissing()
+    {
+        var msft = CreateSnapshot(
+            "MSFT",
+            price: 105m,
+            openPrice: 104m,
+            highPrice: 106m,
+            lowPrice: 101m,
+            previousClose: 100m);
+        var spy = CreateSnapshot(
+            "SPY",
+            price: 102m,
+            openPrice: 101m,
+            highPrice: 103m,
+            lowPrice: 100m,
+            previousClose: 100m,
+            assetType: AssetType.Etf);
+
+        var signals = _analyzer.Analyze([msft, spy]).ToDictionary(signal => signal.Symbol);
+
+        Assert.Equal(3m, signals["MSFT"].RelativeStrengthVsSpy);
+        Assert.Null(signals["SPY"].RelativeStrengthVsSpy);
+    }
+
+    [Fact]
+    public void Analyze_CalculatesRelativeStrengthFromHistoricalClose_WhenSnapshotPreviousCloseIsMissing()
+    {
+        var snapshot = CreateSnapshot(
+            "MSFT",
+            price: 105m,
+            openPrice: 104m,
+            highPrice: 106m,
+            lowPrice: 101m,
+            previousClose: 0m);
+        var candles = CreateFlatSpyCandles(previousClose: 100m, latestClose: 102m)
+            .Concat(
+            [
+                new MarketCandle(
+                    "MSFT",
+                    AssetType.Equity,
+                    DateTime.SpecifyKind(new DateTime(2026, 5, 17), DateTimeKind.Utc),
+                    100m,
+                    100m,
+                    100m,
+                    100m,
+                    1000000m,
+                    "UnitTest")
+            ])
+            .ToArray();
+
+        var signal = Assert.Single(_analyzer.Analyze([snapshot], candles));
+
+        Assert.Equal(3m, signal.RelativeStrengthVsSpy);
+    }
+
+    [Fact]
+    public void Analyze_LeavesRelativeVolumeAndEma20ExtensionNull_WhenDenominatorsAreMissing()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: 0m,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: null,
+            AverageVolume20: 0m));
+        var snapshot = CreateSnapshot(
+            "MSFT",
+            price: 105m,
+            openPrice: 104m,
+            highPrice: 106m,
+            lowPrice: 101m,
+            previousClose: 100m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.Null(signal.RelativeStrengthVsSpy);
+        Assert.Null(signal.RelativeVolume);
+        Assert.Null(signal.DistanceFromEma20Percent);
+        Assert.Null(signal.ExtensionFromEma20Percent);
     }
 
     [Fact]
@@ -306,6 +466,35 @@ public sealed class TechnicalMarketSignalAnalyzerTests
                     "UnitTest");
             })
             .ToArray();
+    }
+
+    private static IReadOnlyCollection<MarketCandle> CreateFlatSpyCandles(
+        decimal previousClose,
+        decimal latestClose)
+    {
+        return
+        [
+            new MarketCandle(
+                "SPY",
+                AssetType.Equity,
+                DateTime.SpecifyKind(new DateTime(2026, 5, 17), DateTimeKind.Utc),
+                previousClose,
+                previousClose,
+                previousClose,
+                previousClose,
+                1000000m,
+                "UnitTest"),
+            new MarketCandle(
+                "SPY",
+                AssetType.Equity,
+                DateTime.SpecifyKind(new DateTime(2026, 5, 18), DateTimeKind.Utc),
+                latestClose,
+                latestClose,
+                latestClose,
+                latestClose,
+                1000000m,
+                "UnitTest")
+        ];
     }
 
     private static TechnicalMarketSignalAnalyzer CreateAnalyzer(TechnicalIndicators indicators)

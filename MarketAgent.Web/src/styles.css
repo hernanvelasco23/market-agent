@@ -265,7 +265,7 @@ h1 {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 1160px;
 }
 
 th,
@@ -404,6 +404,48 @@ tbody tr.selected {
 .pill-risk {
   color: #fecaca;
   background: rgba(239, 68, 68, 0.18);
+}
+
+.metric-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.metric-strong {
+  color: #052e16;
+  background: #5eead4;
+}
+
+.metric-good {
+  color: #052e16;
+  background: #86efac;
+}
+
+.metric-neutral {
+  color: #d8e3f3;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.metric-watch {
+  color: #422006;
+  background: #fde68a;
+}
+
+.metric-risk {
+  color: #450a0a;
+  background: #fca5a5;
+}
+
+.metric-muted {
+  color: #9fb0c9;
+  background: rgba(127, 145, 171, 0.15);
 }
 
 .breakdown {
