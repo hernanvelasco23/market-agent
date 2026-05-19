@@ -1,8 +1,10 @@
 using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Briefing;
+using MarketAgent.Application.Historical;
 using MarketAgent.Application.PriceIngestion;
 using MarketAgent.Application.Signals;
 using MarketAgent.Infrastructure.AI;
+using MarketAgent.Infrastructure.Indicators;
 using MarketAgent.Infrastructure.MarketData;
 using MarketAgent.Infrastructure.Persistence;
 using MarketAgent.Infrastructure.Watchlists;
@@ -19,14 +21,22 @@ builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
 builder.Services.AddHttpClient<MepMarketDataProvider>();
 builder.Services.AddTransient<IMarketDataProvider>(serviceProvider =>
     serviceProvider.GetRequiredService<MepMarketDataProvider>());
+builder.Services.AddHttpClient<HistoricalMarketDataProvider>();
+builder.Services.AddTransient<IHistoricalMarketDataProvider>(serviceProvider =>
+    serviceProvider.GetRequiredService<HistoricalMarketDataProvider>());
 builder.Services.AddHttpClient(nameof(SemanticKernelMarketBriefingGenerator));
 builder.Services.AddSingleton<IMarketDataProviderResolver, MarketDataProviderResolver>();
 builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
+builder.Services.AddSingleton<IHistoricalCandleRepository, InMemoryHistoricalCandleRepository>();
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
+builder.Services.AddScoped<IHistoricalMarketDataService, HistoricalMarketDataService>();
 builder.Services.AddScoped<IMarketBriefingService, MarketBriefingService>();
 builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefingGenerator>();
+builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>();
 builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
+builder.Services.Configure<HistoricalMarketDataOptions>(
+    builder.Configuration.GetSection(HistoricalMarketDataOptions.SectionName));
 builder.Services.Configure<AzureOpenAIOptions>(
     builder.Configuration.GetSection(AzureOpenAIOptions.SectionName));
 
@@ -72,6 +82,17 @@ app.MapPost(
     async (IMarketSignalService marketSignalService, CancellationToken cancellationToken) =>
     {
         var result = await marketSignalService.GenerateAsync(cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/historical/candles",
+    async (IHistoricalMarketDataService historicalMarketDataService, int? days, CancellationToken cancellationToken) =>
+    {
+        var result = await historicalMarketDataService.GetWatchlistCandlesAsync(
+            days ?? HistoricalMarketDataService.DefaultDays,
+            cancellationToken);
+
         return Results.Ok(result);
     });
 

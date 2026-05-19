@@ -1,4 +1,5 @@
 using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.Models;
 using MarketAgent.Domain.Entities;
 using MarketAgent.Domain.Enums;
 
@@ -7,9 +8,16 @@ namespace MarketAgent.Application.Signals;
 public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
 {
     private const int RsiPeriod = 14;
+    private readonly ITechnicalIndicatorService _technicalIndicatorService;
+
+    public TechnicalMarketSignalAnalyzer(ITechnicalIndicatorService technicalIndicatorService)
+    {
+        _technicalIndicatorService = technicalIndicatorService;
+    }
 
     public IReadOnlyCollection<MarketSignal> Analyze(
-        IReadOnlyCollection<MarketSnapshot> snapshots)
+        IReadOnlyCollection<MarketSnapshot> snapshots,
+        IReadOnlyCollection<MarketCandle>? candles = null)
     {
         ArgumentNullException.ThrowIfNull(snapshots);
 
@@ -19,26 +27,45 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
         }
 
         var generatedAtUtc = DateTime.UtcNow;
+        var candlesBySymbol = (candles ?? [])
+            .GroupBy(candle => candle.Symbol)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var marketRegime = DetermineMarketRegime(candlesBySymbol);
+        var spyChange = CalculateSpyChange(candlesBySymbol);
 
         return snapshots
             .GroupBy(snapshot => snapshot.Symbol)
-            .Select(group => AnalyzeLatest(group.OrderBy(snapshot => snapshot.CapturedAtUtc).ToArray(), generatedAtUtc))
+            .Select(group =>
+            {
+                candlesBySymbol.TryGetValue(group.Key, out var symbolCandles);
+
+                return AnalyzeLatest(
+                    group.OrderBy(snapshot => snapshot.CapturedAtUtc).ToArray(),
+                    symbolCandles ?? [],
+                    marketRegime,
+                    spyChange,
+                    generatedAtUtc);
+            })
             .OrderByDescending(signal => signal.Score)
             .ThenBy(signal => signal.Symbol)
             .ToArray();
     }
 
-    private static MarketSignal AnalyzeLatest(
+    private MarketSignal AnalyzeLatest(
         IReadOnlyList<MarketSnapshot> snapshots,
+        IReadOnlyCollection<MarketCandle> candles,
+        string marketRegime,
+        decimal? spyChange,
         DateTime generatedAtUtc)
     {
         var latest = snapshots[^1];
-        var rsi = CalculateRsi(snapshots);
+        var indicators = _technicalIndicatorService.Calculate(candles);
+        var rsi = indicators.Rsi14 ?? CalculateRsi(snapshots);
         var drawdown = CalculateDrawdown(latest);
         var rangePosition = CalculateRangePosition(latest);
         var intradayChange = CalculatePercentChange(latest.Price, latest.OpenPrice);
         var previousCloseChange = CalculatePercentChange(latest.Price, latest.PreviousClose);
-        var trend = CalculateTrend(rangePosition, intradayChange, previousCloseChange);
+        var trend = CalculateTrend(rangePosition, intradayChange, previousCloseChange, latest.Price, indicators);
 
         var score = 50m;
         var reasons = new List<string>();
@@ -73,6 +100,9 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             reasons.Add("RSI oversold near support");
         }
 
+        ApplyIndicatorScoring(latest, indicators, reasons, ref score);
+        ApplyMarketRegimeScoring(latest, marketRegime, reasons, ref score);
+
         if (drawdown is <= -8m)
         {
             score -= Math.Min(Math.Abs(drawdown.Value) * 1.5m, 24m);
@@ -93,10 +123,13 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
 
         var roundedScore = Round(Clamp(score, 0m, 100m));
         var roundedTrend = Round(Clamp(trend, -1m, 1m));
+        var relativeStrengthVsSpy = CalculateRelativeStrengthVsSpy(latest, spyChange);
+        var hasMixedSignals = HasMixedSignals(reasons);
+        var setupType = DetermineSetupType(reasons, roundedScore, hasMixedSignals);
         var signalType = roundedScore >= 55m
             ? MarketSignalType.Bullish
             : roundedScore < 40m ? MarketSignalType.Risk : MarketSignalType.Neutral;
-        var action = DetermineAction(roundedScore);
+        var action = DetermineAction(roundedScore, hasMixedSignals);
         var timeframe = DetermineTimeframe(roundedScore, rangePosition);
         var confidence = DetermineConfidence(roundedScore, rangePosition);
         var reason = BuildReason(reasons, roundedScore);
@@ -106,17 +139,210 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             latest.AssetType,
             signalType,
             roundedScore,
+            setupType,
             reason,
             action,
             timeframe,
             confidence,
             roundedTrend,
             Round(rsi),
+            indicators.Ema9,
+            indicators.Ema20,
+            indicators.Ema50,
+            indicators.Atr14,
+            indicators.AverageVolume10,
+            indicators.AverageVolume20,
+            null,
+            Round(relativeStrengthVsSpy),
             Round(drawdown),
             Round(latest.Price),
-            CalculateStop(latest),
-            CalculateTarget(latest),
+            CalculateStop(latest, indicators),
+            CalculateTarget(latest, indicators),
             generatedAtUtc);
+    }
+
+    private static decimal? CalculateSpyChange(
+        IReadOnlyDictionary<string, MarketCandle[]> candlesBySymbol)
+    {
+        if (!candlesBySymbol.TryGetValue("SPY", out var spyCandles) || spyCandles.Length < 2)
+        {
+            return null;
+        }
+
+        var ordered = spyCandles
+            .OrderBy(candle => candle.OccurredAtUtc)
+            .TakeLast(2)
+            .ToArray();
+
+        return CalculatePercentChange(ordered[^1].Close, ordered[0].Close);
+    }
+
+    private static decimal? CalculateRelativeStrengthVsSpy(
+        MarketSnapshot snapshot,
+        decimal? spyChange)
+    {
+        if (spyChange is null ||
+            snapshot.Symbol.Equals("SPY", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var snapshotChange = CalculatePercentChange(snapshot.Price, snapshot.PreviousClose);
+
+        return snapshotChange is null
+            ? null
+            : snapshotChange.Value - spyChange.Value;
+    }
+
+    private static bool HasMixedSignals(IReadOnlyCollection<string> reasons)
+    {
+        var hasConstructiveSignal = reasons.Any(reason =>
+            reason.Contains("above EMA", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("relative strength", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("positive move", StringComparison.OrdinalIgnoreCase));
+        var hasWeakSignal = reasons.Any(reason =>
+            reason.Contains("session low", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("intraday weakness", StringComparison.OrdinalIgnoreCase) ||
+            reason.Contains("drawdown", StringComparison.OrdinalIgnoreCase));
+
+        return hasConstructiveSignal && hasWeakSignal;
+    }
+
+    private static string DetermineSetupType(
+        IReadOnlyCollection<string> reasons,
+        decimal score,
+        bool hasMixedSignals)
+    {
+        if (score < 40m)
+        {
+            return "Risk";
+        }
+
+        if (hasMixedSignals && score < 60m)
+        {
+            return "Mixed";
+        }
+
+        if (reasons.Any(reason => reason.Contains("pullback near support", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Pullback";
+        }
+
+        if (score >= 60m)
+        {
+            return "Momentum";
+        }
+
+        return "Neutral";
+    }
+
+    private string DetermineMarketRegime(
+        IReadOnlyDictionary<string, MarketCandle[]> candlesBySymbol)
+    {
+        if (!candlesBySymbol.TryGetValue("SPY", out var spyCandles) || spyCandles.Length == 0)
+        {
+            return "Neutral";
+        }
+
+        var latestClose = spyCandles
+            .OrderBy(candle => candle.OccurredAtUtc)
+            .Last()
+            .Close;
+        var indicators = _technicalIndicatorService.Calculate(spyCandles);
+
+        if (indicators.Ema20 is not null && latestClose < indicators.Ema20.Value)
+        {
+            return "RiskOff";
+        }
+
+        if (indicators.Ema20 is not null &&
+            indicators.Ema50 is not null &&
+            latestClose > indicators.Ema20.Value &&
+            latestClose > indicators.Ema50.Value)
+        {
+            return "RiskOn";
+        }
+
+        return "Neutral";
+    }
+
+    private static void ApplyMarketRegimeScoring(
+        MarketSnapshot snapshot,
+        string marketRegime,
+        List<string> reasons,
+        ref decimal score)
+    {
+        if (snapshot.Symbol.Equals("SPY", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (marketRegime == "RiskOff")
+        {
+            score -= 3m;
+            reasons.Add("risk-off market regime filter");
+        }
+        else if (marketRegime == "RiskOn")
+        {
+            score += 2m;
+            reasons.Add("risk-on market regime filter");
+        }
+    }
+
+    private static void ApplyIndicatorScoring(
+        MarketSnapshot snapshot,
+        TechnicalIndicators indicators,
+        List<string> reasons,
+        ref decimal score)
+    {
+        if (indicators.Ema9 is not null && snapshot.Price > indicators.Ema9.Value)
+        {
+            score += 4m;
+            reasons.Add("price above EMA9");
+        }
+
+        if (indicators.Ema20 is not null)
+        {
+            if (snapshot.Price > indicators.Ema20.Value)
+            {
+                score += 5m;
+                reasons.Add("price above EMA20");
+            }
+            else
+            {
+                score -= 6m;
+                reasons.Add("price below EMA20");
+            }
+        }
+
+        if (indicators.Ema50 is not null && snapshot.Price < indicators.Ema50.Value)
+        {
+            score -= 8m;
+            reasons.Add("price below EMA50");
+        }
+
+        if (indicators.Rsi14 is >= 65m)
+        {
+            score += 4m;
+            reasons.Add("RSI confirms momentum");
+        }
+
+        if (indicators.Rsi14 is <= 30m)
+        {
+            score -= 4m;
+            reasons.Add("RSI remains weak");
+        }
+
+        if (snapshot.Volume is > 0 && indicators.AverageVolume20 is > 0)
+        {
+            var volumeRatio = snapshot.Volume.Value / indicators.AverageVolume20.Value;
+
+            if (volumeRatio >= 1.5m)
+            {
+                score += 3m;
+                reasons.Add("volume above 20-day average");
+            }
+        }
     }
 
     private static string DetermineTimeframe(decimal score, decimal? rangePosition)
@@ -148,8 +374,13 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             : "Low";
     }
 
-    private static string DetermineAction(decimal score)
+    private static string DetermineAction(decimal score, bool hasMixedSignals)
     {
+        if (hasMixedSignals && score < 60m)
+        {
+            return "Watch for confirmation";
+        }
+
         if (score >= 55m)
         {
             return "Candidate";
@@ -260,7 +491,9 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
     private static decimal CalculateTrend(
         decimal? rangePosition,
         decimal? intradayChange,
-        decimal? previousCloseChange)
+        decimal? previousCloseChange,
+        decimal price,
+        TechnicalIndicators indicators)
     {
         var trend = 0m;
 
@@ -279,6 +512,16 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             trend += Clamp(previousCloseChange.Value / 12m, -0.25m, 0.25m);
         }
 
+        if (indicators.Ema20 is > 0)
+        {
+            trend += price >= indicators.Ema20.Value ? 0.15m : -0.15m;
+        }
+
+        if (indicators.Ema50 is > 0)
+        {
+            trend += price >= indicators.Ema50.Value ? 0.1m : -0.1m;
+        }
+
         return trend;
     }
 
@@ -289,8 +532,13 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             : null;
     }
 
-    private static decimal? CalculateStop(MarketSnapshot snapshot)
+    private static decimal? CalculateStop(MarketSnapshot snapshot, TechnicalIndicators indicators)
     {
+        if (indicators.Atr14 is > 0)
+        {
+            return Round(snapshot.Price - (indicators.Atr14.Value * 1.5m));
+        }
+
         if (snapshot.LowPrice is > 0)
         {
             return Round(snapshot.LowPrice.Value * 0.99m);
@@ -301,8 +549,13 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             : null;
     }
 
-    private static decimal? CalculateTarget(MarketSnapshot snapshot)
+    private static decimal? CalculateTarget(MarketSnapshot snapshot, TechnicalIndicators indicators)
     {
+        if (indicators.Atr14 is > 0)
+        {
+            return Round(snapshot.Price + (indicators.Atr14.Value * 2m));
+        }
+
         if (snapshot.HighPrice is > 0)
         {
             var range = snapshot.LowPrice is > 0
