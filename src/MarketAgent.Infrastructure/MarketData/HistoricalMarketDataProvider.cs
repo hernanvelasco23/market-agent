@@ -19,6 +19,16 @@ public sealed class HistoricalMarketDataProvider : IHistoricalMarketDataProvider
     private static readonly IReadOnlyDictionary<string, string> YahooProviderSymbols =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            ["MU"] = "MU",
+            ["AMZN"] = "AMZN",
+            ["V"] = "V",
+            ["ASTS"] = "ASTS",
+            ["NKE"] = "NKE",
+            ["PLTR"] = "PLTR",
+            ["PATH"] = "PATH",
+            ["META"] = "META",
+            ["GOOG"] = "GOOG",
+            ["RKLB"] = "RKLB",
             ["NVDA"] = "NVDA",
             ["MSFT"] = "MSFT",
             ["AMD"] = "AMD",
@@ -33,6 +43,16 @@ public sealed class HistoricalMarketDataProvider : IHistoricalMarketDataProvider
     private static readonly IReadOnlyDictionary<string, string> StooqProviderSymbols =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            ["MU"] = "mu.us",
+            ["AMZN"] = "amzn.us",
+            ["V"] = "v.us",
+            ["ASTS"] = "asts.us",
+            ["NKE"] = "nke.us",
+            ["PLTR"] = "pltr.us",
+            ["PATH"] = "path.us",
+            ["META"] = "meta.us",
+            ["GOOG"] = "goog.us",
+            ["RKLB"] = "rklb.us",
             ["NVDA"] = "nvda.us",
             ["MSFT"] = "msft.us",
             ["AMD"] = "amd.us",

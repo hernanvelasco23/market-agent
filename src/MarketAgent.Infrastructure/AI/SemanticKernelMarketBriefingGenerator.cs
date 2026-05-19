@@ -117,6 +117,8 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         promptBuilder.AppendLine("You are Market Agent.");
         promptBuilder.AppendLine("Use the calculated MarketSignal results as the primary input, with MarketSnapshot data as supporting context.");
         promptBuilder.AppendLine("Explain only calculated data. Do not invent prices, indicators, RSI values, targets, stops, scores, or recommendations.");
+        promptBuilder.AppendLine("Explain calculated risk fields such as ATR stop, TP1/TP2/TP3, risk/reward, suggested position size, and scoreBreakdown only when provided.");
+        promptBuilder.AppendLine("Explain calculated behavior fields such as recovery strength, gap recovery, institutional absorption, trend slope, extension risk, and momentum continuation only when those fields are present.");
         promptBuilder.AppendLine("Do not give trading advice, buy/sell recommendations, or unsupported claims.");
         promptBuilder.AppendLine("This is a decision-support signal, not a trade recommendation.");
         promptBuilder.AppendLine("Use the preclassified signal sections below to prioritize top opportunities, watchlist pullbacks, top risks, strongest assets, weakest assets, and watch items.");
@@ -155,7 +157,7 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         foreach (var signal in signals.OrderByDescending(item => item.Score))
         {
             promptBuilder.AppendLine(
-                $"- Symbol: {signal.Symbol}; Type: {signal.AssetType}; SignalType: {signal.SignalType}; SetupType: {signal.SetupType}; Score: {signal.Score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; Reason: {signal.Reason}; Action: {signal.Action}; Timeframe: {signal.Timeframe}; Confidence: {signal.Confidence}; Trend: {signal.Trend.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; EMA9: {FormatOptional(signal.Ema9)}; EMA20: {FormatOptional(signal.Ema20)}; EMA50: {FormatOptional(signal.Ema50)}; RSI14: {FormatOptional(signal.Rsi)}; ATR14: {FormatOptional(signal.Atr14)}; AverageVolume10: {FormatOptional(signal.AverageVolume10)}; AverageVolume20: {FormatOptional(signal.AverageVolume20)}; AboveVwap: {FormatOptional(signal.AboveVwap)}; RelativeStrengthVsSpy: {FormatOptional(signal.RelativeStrengthVsSpy)}; Drawdown: {FormatOptional(signal.Drawdown)}; Entry: {FormatOptional(signal.Entry)}; Stop: {FormatOptional(signal.Stop)}; Target: {FormatOptional(signal.Target)}; GeneratedAtUtc: {signal.GeneratedAtUtc:O}");
+                $"- Symbol: {signal.Symbol}; Type: {signal.AssetType}; SignalType: {signal.SignalType}; SetupType: {signal.SetupType}; Score: {signal.Score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; Reason: {signal.Reason}; Action: {signal.Action}; Timeframe: {signal.Timeframe}; Confidence: {signal.Confidence}; Trend: {signal.Trend.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; EMA9: {FormatOptional(signal.Ema9)}; EMA20: {FormatOptional(signal.Ema20)}; EMA50: {FormatOptional(signal.Ema50)}; RSI14: {FormatOptional(signal.Rsi)}; ATR14: {FormatOptional(signal.Atr14)}; AverageVolume10: {FormatOptional(signal.AverageVolume10)}; AverageVolume20: {FormatOptional(signal.AverageVolume20)}; AboveVwap: {FormatOptional(signal.AboveVwap)}; RelativeStrengthVsSpy: {FormatOptional(signal.RelativeStrengthVsSpy)}; RecoveryFromLowPercent: {FormatOptional(signal.RecoveryFromLowPercent)}; StrongIntradayRecovery: {signal.StrongIntradayRecovery}; GapPercent: {FormatOptional(signal.GapPercent)}; GapRecovery: {signal.GapRecovery}; EMA20Slope: {FormatOptional(signal.Ema20Slope)}; EMA50Slope: {FormatOptional(signal.Ema50Slope)}; StrongTrendSlope: {signal.StrongTrendSlope}; DistanceFromEma20Percent: {FormatOptional(signal.DistanceFromEma20Percent)}; ExtensionRisk: {signal.ExtensionRisk ?? "n/a"}; MomentumContinuation: {signal.MomentumContinuation}; Drawdown: {FormatOptional(signal.Drawdown)}; Entry: {FormatOptional(signal.Entry)}; Stop: {FormatOptional(signal.Stop)}; Target: {FormatOptional(signal.Target)}; TP1: {FormatOptional(signal.TakeProfit1)}; TP2: {FormatOptional(signal.TakeProfit2)}; TP3: {FormatOptional(signal.TakeProfit3)}; RR1: {FormatOptional(signal.RiskReward1)}; RR2: {FormatOptional(signal.RiskReward2)}; RR3: {FormatOptional(signal.RiskReward3)}; RiskPerShare: {FormatOptional(signal.RiskPerShare)}; MaxRiskAmount: {FormatOptional(signal.MaxRiskAmount)}; SuggestedPositionSize: {FormatOptional(signal.SuggestedPositionSize)}; RegimeSizingMultiplier: {FormatOptional(signal.RegimeSizingMultiplier)}; ScoreBreakdown: {FormatScoreBreakdown(signal.ScoreBreakdown)}; GeneratedAtUtc: {signal.GeneratedAtUtc:O}");
         }
 
         return promptBuilder.ToString();
@@ -195,7 +197,31 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Rsi,
                 signal.Atr14,
                 signal.AboveVwap,
-                signal.RelativeStrengthVsSpy))
+                signal.RelativeStrengthVsSpy,
+                signal.RecoveryFromLowPercent,
+                signal.StrongIntradayRecovery,
+                signal.GapPercent,
+                signal.GapRecovery,
+                signal.Ema20Slope,
+                signal.Ema50Slope,
+                signal.StrongTrendSlope,
+                signal.DistanceFromEma20Percent,
+                signal.ExtensionRisk,
+                signal.MomentumContinuation,
+                signal.Entry,
+                signal.Stop,
+                signal.Target,
+                signal.TakeProfit1,
+                signal.TakeProfit2,
+                signal.TakeProfit3,
+                signal.RiskReward1,
+                signal.RiskReward2,
+                signal.RiskReward3,
+                signal.RiskPerShare,
+                signal.MaxRiskAmount,
+                signal.SuggestedPositionSize,
+                signal.RegimeSizingMultiplier,
+                BuildScoreBreakdown(signal)))
             .ToArray();
     }
 
@@ -215,6 +241,25 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Entry,
                 signal.Stop,
                 signal.Target,
+                signal.TakeProfit1,
+                signal.TakeProfit2,
+                signal.TakeProfit3,
+                signal.RiskReward1,
+                signal.RiskReward2,
+                signal.RiskReward3,
+                signal.RiskPerShare,
+                signal.MaxRiskAmount,
+                signal.SuggestedPositionSize,
+                signal.RecoveryFromLowPercent,
+                signal.StrongIntradayRecovery,
+                signal.GapPercent,
+                signal.GapRecovery,
+                signal.Ema20Slope,
+                signal.Ema50Slope,
+                signal.StrongTrendSlope,
+                signal.DistanceFromEma20Percent,
+                signal.ExtensionRisk,
+                signal.MomentumContinuation,
                 signal.Action,
                 signal.Timeframe,
                 signal.Confidence))
@@ -225,7 +270,9 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         IReadOnlyCollection<MarketSignal> signals)
     {
         return signals
-            .Where(signal => signal.SetupType == "Pullback" || signal.Action == "Watch for confirmation")
+            .Where(signal =>
+                (signal.SetupType == "Pullback" || signal.Action.StartsWith("Watch", StringComparison.OrdinalIgnoreCase)) &&
+                !(signal.Score >= 60m && signal.Action == "Candidate" && signal.Confidence is "Medium" or "High"))
             .OrderByDescending(signal => signal.Score)
             .Select(signal =>
             {
@@ -238,10 +285,26 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                     hasEnoughConfidence ? signal.Entry : null,
                     hasEnoughConfidence ? signal.Stop : null,
                     hasEnoughConfidence ? signal.Target : null,
+                    hasEnoughConfidence ? signal.TakeProfit1 : null,
+                    hasEnoughConfidence ? signal.TakeProfit2 : null,
+                    hasEnoughConfidence ? signal.TakeProfit3 : null,
+                    hasEnoughConfidence ? signal.RiskReward1 : null,
+                    hasEnoughConfidence ? signal.RiskReward2 : null,
+                    hasEnoughConfidence ? signal.RiskReward3 : null,
+                    signal.RecoveryFromLowPercent,
+                    signal.StrongIntradayRecovery,
+                    signal.GapPercent,
+                    signal.GapRecovery,
+                    signal.Ema20Slope,
+                    signal.Ema50Slope,
+                    signal.StrongTrendSlope,
+                    signal.DistanceFromEma20Percent,
+                    signal.ExtensionRisk,
+                    signal.MomentumContinuation,
                     true,
-                    "Watch for confirmation",
-                    "WatchOnly",
-                    "Low");
+                    signal.Action.StartsWith("Watch", StringComparison.OrdinalIgnoreCase) ? signal.Action : "Watch for confirmation",
+                    signal.Timeframe,
+                    signal.Confidence);
             })
             .ToArray();
     }
@@ -259,8 +322,34 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 DetermineRiskType(signal),
                 "Avoid / high risk",
                 "WatchOnly",
-                "Low"))
+                "Low",
+                signal.RiskPerShare,
+                signal.RegimeSizingMultiplier,
+                signal.RecoveryFromLowPercent,
+                signal.StrongIntradayRecovery,
+                signal.GapPercent,
+                signal.GapRecovery,
+                signal.Ema20Slope,
+                signal.Ema50Slope,
+                signal.StrongTrendSlope,
+                signal.DistanceFromEma20Percent,
+                signal.ExtensionRisk,
+                signal.MomentumContinuation))
             .ToArray();
+    }
+
+    private static IReadOnlyCollection<MarketBriefingScoreFactor> BuildScoreBreakdown(MarketSignal signal)
+    {
+        return signal.ScoreBreakdown
+            .Select(factor => new MarketBriefingScoreFactor(factor.Label, factor.Points))
+            .ToArray();
+    }
+
+    private static string FormatScoreBreakdown(IReadOnlyCollection<MarketSignalScoreFactor> scoreBreakdown)
+    {
+        return scoreBreakdown.Count == 0
+            ? "n/a"
+            : string.Join(", ", scoreBreakdown.Select(item => $"{item.Label}: {item.Points.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}"));
     }
 
     private static IReadOnlyCollection<string> BuildWatchItems(
@@ -320,6 +409,11 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         if (signal.Reason.Contains("intraday weakness", StringComparison.OrdinalIgnoreCase))
         {
             return "Intraday weakness";
+        }
+
+        if (signal.ExtensionRisk is not null)
+        {
+            return "Extension risk";
         }
 
         if (signal.Reason.Contains("drawdown", StringComparison.OrdinalIgnoreCase))
