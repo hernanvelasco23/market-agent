@@ -62,22 +62,30 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         var briefing = ParseBriefing(content);
         var highlights = briefing.Highlights ?? [];
         var risks = briefing.Risks ?? [];
-        var watchItems = briefing.WatchItems ?? [];
+        var allSignals = BuildAllSignals(signals);
         var topOpportunities = BuildTopOpportunities(signals);
         var watchlistPullbacks = BuildWatchlistPullbacks(signals);
         var topRisks = BuildTopRisks(signals);
+        var watchItems = BuildWatchItems(briefing.WatchItems ?? [], signals, topOpportunities, watchlistPullbacks, topRisks);
+        var diagnostics = BuildDiagnostics(signals, allSignals);
+        var warning = diagnostics.MissingSymbols.Count > 0
+            ? $"Missing symbols in allSignals: {string.Join(", ", diagnostics.MissingSymbols)}"
+            : null;
 
         return new MarketBriefingResult(
             DateTime.UtcNow,
             briefing.MarketRegime,
             briefing.Summary,
             briefing.SignalSummary,
+            allSignals,
             topOpportunities,
             watchlistPullbacks,
             topRisks,
             highlights,
             risks,
-            watchItems);
+            watchItems,
+            diagnostics,
+            warning);
     }
 
     private IChatCompletionService CreateChatCompletionService()
@@ -112,10 +120,11 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         promptBuilder.AppendLine("Do not give trading advice, buy/sell recommendations, or unsupported claims.");
         promptBuilder.AppendLine("This is a decision-support signal, not a trade recommendation.");
         promptBuilder.AppendLine("Use the preclassified signal sections below to prioritize top opportunities, watchlist pullbacks, top risks, strongest assets, weakest assets, and watch items.");
+        promptBuilder.AppendLine("Do not drop symbols. If there are many symbols, summarize groups in prose; the API will preserve every analyzed symbol in allSignals.");
         promptBuilder.AppendLine("Do not move a risk asset into opportunity language. Low-score pullbacks require confirmation and must not sound attractive.");
         promptBuilder.AppendLine("Return valid JSON only with this shape:");
         promptBuilder.AppendLine("""{"marketRegime":"string","summary":"string","signalSummary":"string","highlights":["string"],"risks":["string"],"watchItems":["string"]}""");
-        promptBuilder.AppendLine("The API response will attach topOpportunities, watchlistPullbacks, and topRisks from calculated signals. Do not create those arrays in the AI JSON.");
+        promptBuilder.AppendLine("The API response will attach allSignals, topOpportunities, watchlistPullbacks, topRisks, and diagnostics from calculated signals. Do not create those arrays in the AI JSON.");
         promptBuilder.AppendLine();
         promptBuilder.AppendLine("Snapshots:");
 
@@ -146,7 +155,7 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         foreach (var signal in signals.OrderByDescending(item => item.Score))
         {
             promptBuilder.AppendLine(
-                $"- Symbol: {signal.Symbol}; Type: {signal.AssetType}; SignalType: {signal.SignalType}; Score: {signal.Score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; Reason: {signal.Reason}; Action: {signal.Action}; Timeframe: {signal.Timeframe}; Confidence: {signal.Confidence}; Trend: {signal.Trend.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; RSI: {FormatOptional(signal.Rsi)}; Drawdown: {FormatOptional(signal.Drawdown)}; Entry: {FormatOptional(signal.Entry)}; Stop: {FormatOptional(signal.Stop)}; Target: {FormatOptional(signal.Target)}; GeneratedAtUtc: {signal.GeneratedAtUtc:O}");
+                $"- Symbol: {signal.Symbol}; Type: {signal.AssetType}; SignalType: {signal.SignalType}; SetupType: {signal.SetupType}; Score: {signal.Score.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; Reason: {signal.Reason}; Action: {signal.Action}; Timeframe: {signal.Timeframe}; Confidence: {signal.Confidence}; Trend: {signal.Trend.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}; EMA9: {FormatOptional(signal.Ema9)}; EMA20: {FormatOptional(signal.Ema20)}; EMA50: {FormatOptional(signal.Ema50)}; RSI14: {FormatOptional(signal.Rsi)}; ATR14: {FormatOptional(signal.Atr14)}; AverageVolume10: {FormatOptional(signal.AverageVolume10)}; AverageVolume20: {FormatOptional(signal.AverageVolume20)}; AboveVwap: {FormatOptional(signal.AboveVwap)}; RelativeStrengthVsSpy: {FormatOptional(signal.RelativeStrengthVsSpy)}; Drawdown: {FormatOptional(signal.Drawdown)}; Entry: {FormatOptional(signal.Entry)}; Stop: {FormatOptional(signal.Stop)}; Target: {FormatOptional(signal.Target)}; GeneratedAtUtc: {signal.GeneratedAtUtc:O}");
         }
 
         return promptBuilder.ToString();
@@ -159,13 +168,46 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
             : "n/a";
     }
 
+    private static string FormatOptional(bool? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString()
+            : "n/a";
+    }
+
+    private static IReadOnlyCollection<MarketBriefingAllSignalItem> BuildAllSignals(
+        IReadOnlyCollection<MarketSignal> signals)
+    {
+        return signals
+            .OrderByDescending(signal => signal.Score)
+            .ThenBy(signal => signal.Symbol)
+            .Select(signal => new MarketBriefingAllSignalItem(
+                signal.Symbol,
+                signal.Score,
+                signal.SetupType,
+                signal.Action,
+                signal.Timeframe,
+                signal.Confidence,
+                signal.Reason,
+                signal.Ema9,
+                signal.Ema20,
+                signal.Ema50,
+                signal.Rsi,
+                signal.Atr14,
+                signal.AboveVwap,
+                signal.RelativeStrengthVsSpy))
+            .ToArray();
+    }
+
     private static IReadOnlyCollection<MarketBriefingOpportunityItem> BuildTopOpportunities(
         IReadOnlyCollection<MarketSignal> signals)
     {
         return signals
-            .Where(signal => signal.SignalType == MarketSignalType.Bullish && signal.Score >= 55m)
+            .Where(signal =>
+                signal.Score >= 60m &&
+                signal.Action == "Candidate" &&
+                signal.Confidence is "Medium" or "High")
             .OrderByDescending(signal => signal.Score)
-            .Take(5)
             .Select(signal => new MarketBriefingOpportunityItem(
                 signal.Symbol,
                 signal.Score,
@@ -183,9 +225,8 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         IReadOnlyCollection<MarketSignal> signals)
     {
         return signals
-            .Where(signal => signal.Score >= 40m && signal.Score < 55m && IsPullbackSetup(signal))
+            .Where(signal => signal.SetupType == "Pullback" || signal.Action == "Watch for confirmation")
             .OrderByDescending(signal => signal.Score)
-            .Take(5)
             .Select(signal =>
             {
                 var hasEnoughConfidence = signal.Score >= 50m;
@@ -209,9 +250,8 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         IReadOnlyCollection<MarketSignal> signals)
     {
         return signals
-            .Where(signal => signal.Score < 40m)
+            .Where(signal => signal.Score < 40m || signal.Action == "Avoid / high risk")
             .OrderBy(signal => signal.Score)
-            .Take(5)
             .Select(signal => new MarketBriefingRiskItem(
                 signal.Symbol,
                 signal.Score,
@@ -221,6 +261,53 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 "WatchOnly",
                 "Low"))
             .ToArray();
+    }
+
+    private static IReadOnlyCollection<string> BuildWatchItems(
+        IReadOnlyCollection<string> aiWatchItems,
+        IReadOnlyCollection<MarketSignal> signals,
+        IReadOnlyCollection<MarketBriefingOpportunityItem> topOpportunities,
+        IReadOnlyCollection<MarketBriefingPullbackItem> watchlistPullbacks,
+        IReadOnlyCollection<MarketBriefingRiskItem> topRisks)
+    {
+        var classifiedSymbols = topOpportunities.Select(item => item.Symbol)
+            .Concat(watchlistPullbacks.Select(item => item.Symbol))
+            .Concat(topRisks.Select(item => item.Symbol))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var watchItems = aiWatchItems.ToList();
+
+        foreach (var signal in signals
+            .Where(signal => !classifiedSymbols.Contains(signal.Symbol))
+            .OrderBy(signal => signal.Symbol))
+        {
+            watchItems.Add($"{signal.Symbol}: neutral/watch-only setup; {signal.Reason}");
+        }
+
+        return watchItems
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static MarketBriefingDiagnostics BuildDiagnostics(
+        IReadOnlyCollection<MarketSignal> signals,
+        IReadOnlyCollection<MarketBriefingAllSignalItem> allSignals)
+    {
+        var analyzedSymbols = signals
+            .Select(signal => signal.Symbol)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var returnedSymbols = allSignals
+            .Select(signal => signal.Symbol)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missingSymbols = analyzedSymbols
+            .Where(symbol => !returnedSymbols.Contains(symbol))
+            .OrderBy(symbol => symbol)
+            .ToArray();
+
+        return new MarketBriefingDiagnostics(
+            analyzedSymbols.Length,
+            allSignals.Count,
+            missingSymbols);
     }
 
     private static bool IsPullbackSetup(MarketSignal signal)

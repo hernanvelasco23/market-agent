@@ -1,3 +1,5 @@
+using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.Models;
 using MarketAgent.Application.Signals;
 using MarketAgent.Domain.Entities;
 using MarketAgent.Domain.Enums;
@@ -6,7 +8,7 @@ namespace MarketAgent.UnitTests;
 
 public sealed class TechnicalMarketSignalAnalyzerTests
 {
-    private readonly TechnicalMarketSignalAnalyzer _analyzer = new();
+    private readonly TechnicalMarketSignalAnalyzer _analyzer = new(new EmptyTechnicalIndicatorService());
 
     [Fact]
     public void Analyze_ReturnsBullishSignal_WhenPriceShowsRelativeStrength()
@@ -134,5 +136,13 @@ public sealed class TechnicalMarketSignalAnalyzerTests
             highPrice,
             lowPrice,
             previousClose);
+    }
+
+    private sealed class EmptyTechnicalIndicatorService : ITechnicalIndicatorService
+    {
+        public TechnicalIndicators Calculate(IReadOnlyCollection<MarketCandle> candles)
+        {
+            return new TechnicalIndicators(null, null, null, null, null, null, null);
+        }
     }
 }

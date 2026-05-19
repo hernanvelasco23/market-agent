@@ -5,5 +5,6 @@ namespace MarketAgent.Application.Abstractions;
 public interface IMarketSignalAnalyzer
 {
     IReadOnlyCollection<MarketSignal> Analyze(
-        IReadOnlyCollection<MarketSnapshot> snapshots);
+        IReadOnlyCollection<MarketSnapshot> snapshots,
+        IReadOnlyCollection<MarketCandle>? candles = null);
 }
