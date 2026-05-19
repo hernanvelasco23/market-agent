@@ -2,6 +2,8 @@ import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { buildSparklinePricesBySymbol, loadDashboard, loadHistoricalCandles, runBriefing, runIngestion, runSignals, toDashboardSignal } from "./api";
+import { deriveDashboardAlerts } from "./alerts";
+import { AlertCenter } from "./components/AlertCenter";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
 import { Sparkline } from "./components/Sparkline";
 import type { BriefingResult, DashboardSignal, IngestionResult, SparklinePricesBySymbol } from "./types";
@@ -21,6 +23,7 @@ export function App() {
   const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
 
   const allSignals = briefing?.allSignals ?? [];
+  const alerts = useMemo(() => deriveDashboardAlerts(allSignals), [allSignals]);
   const selectedSignal = useMemo(
     () => allSignals.find((signal) => signal.symbol === selectedSymbol) ?? allSignals[0] ?? null,
     [allSignals, selectedSymbol]
@@ -149,6 +152,8 @@ export function App() {
         <SignalGroup title="Watchlist Pullbacks" tone="watch" icon={<Search size={17} />} signals={briefing?.watchlistPullbacks ?? []} onSelect={setSelectedSymbol} />
         <SignalGroup title="Top Risks" tone="risk" icon={<ShieldAlert size={17} />} signals={briefing?.topRisks ?? []} onSelect={setSelectedSymbol} />
       </section>
+
+      <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
 
       <section className="workspace">
         <SignalsTable signals={allSignals} selectedSymbol={selectedSignal?.symbol ?? null} sparklinePrices={sparklinePrices} onSelect={setSelectedSymbol} />
