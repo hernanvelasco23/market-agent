@@ -264,6 +264,7 @@ function SignalsTable({
               <th>Trend</th>
               <th>Score</th>
               <th>Setup</th>
+              <th>Flag</th>
               <th>Action</th>
               <th>Confidence</th>
               <th>Timeframe</th>
@@ -291,6 +292,7 @@ function SignalsTable({
                   <td className="sparkline-cell"><Sparkline prices={prices} width={96} height={28} /></td>
                   <td><Score value={signal.score} /></td>
                   <td>{signal.setupType}</td>
+                  <td>{signal.openingRedReversalDetected ? <span className="signal-flag">ORR</span> : null}</td>
                   <td><Pill value={signal.action} /></td>
                   <td>{signal.confidence}</td>
                   <td>{signal.timeframe}</td>

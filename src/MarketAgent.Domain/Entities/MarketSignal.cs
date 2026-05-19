@@ -29,6 +29,11 @@ public sealed class MarketSignal
         bool strongIntradayRecovery,
         decimal? gapPercent,
         bool gapRecovery,
+        bool openingRedReversalDetected,
+        decimal? openGapPercent,
+        decimal? openingRedReversalRecoveryFromLowPercent,
+        bool reclaimOpen,
+        bool reclaimPreviousClose,
         decimal? ema20Slope,
         decimal? ema50Slope,
         bool strongTrendSlope,
@@ -123,6 +128,11 @@ public sealed class MarketSignal
         StrongIntradayRecovery = strongIntradayRecovery;
         GapPercent = gapPercent;
         GapRecovery = gapRecovery;
+        OpeningRedReversalDetected = openingRedReversalDetected;
+        OpenGapPercent = openGapPercent;
+        OpeningRedReversalRecoveryFromLowPercent = openingRedReversalRecoveryFromLowPercent;
+        ReclaimOpen = reclaimOpen;
+        ReclaimPreviousClose = reclaimPreviousClose;
         Ema20Slope = ema20Slope;
         Ema50Slope = ema50Slope;
         StrongTrendSlope = strongTrendSlope;
@@ -194,6 +204,16 @@ public sealed class MarketSignal
     public decimal? GapPercent { get; }
 
     public bool GapRecovery { get; }
+
+    public bool OpeningRedReversalDetected { get; }
+
+    public decimal? OpenGapPercent { get; }
+
+    public decimal? OpeningRedReversalRecoveryFromLowPercent { get; }
+
+    public bool ReclaimOpen { get; }
+
+    public bool ReclaimPreviousClose { get; }
 
     public decimal? Ema20Slope { get; }
 

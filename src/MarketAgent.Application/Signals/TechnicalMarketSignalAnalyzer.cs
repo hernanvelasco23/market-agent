@@ -188,7 +188,9 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
         var roundedTrend = Round(Clamp(trend, -1m, 1m));
         var relativeStrengthVsSpy = CalculateRelativeStrengthVsSpy(latest, candles, spyChange);
         var relativeVolume = CalculateRelativeVolume(latest, indicators);
+        var openingRedReversal = CalculateOpeningRedReversal(latest, relativeVolume);
         ApplyRelativeStrengthScoring(relativeStrengthVsSpy, reasons, scoreBreakdown, ref roundedScore);
+        ApplyOpeningRedReversalScoring(openingRedReversal, reasons, scoreBreakdown, ref roundedScore);
         var hasMixedSignals = HasMixedSignals(reasons);
         var momentumContinuation = IsMomentumContinuation(
             latest,
@@ -252,6 +254,11 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             strongIntradayRecovery,
             Round(gapPercent),
             gapRecovery,
+            openingRedReversal.Detected,
+            Round(openingRedReversal.OpenGapPercent),
+            Round(openingRedReversal.RecoveryFromLowPercent),
+            openingRedReversal.ReclaimOpen,
+            openingRedReversal.ReclaimPreviousClose,
             Round(ema20Slope),
             Round(ema50Slope),
             strongTrendSlope,
@@ -350,6 +357,29 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
         return snapshot.Volume is > 0 && indicators.AverageVolume20 is > 0
             ? snapshot.Volume.Value / indicators.AverageVolume20.Value
             : null;
+    }
+
+    private static OpeningRedReversalSignal CalculateOpeningRedReversal(
+        MarketSnapshot snapshot,
+        decimal? relativeVolume)
+    {
+        var openGapPercent = snapshot.OpenPrice is > 0m
+            ? CalculatePercentChange(snapshot.OpenPrice.Value, snapshot.PreviousClose)
+            : null;
+        var recoveryFromLowPercent = CalculatePercentChange(snapshot.Price, snapshot.LowPrice);
+        var reclaimOpen = snapshot.OpenPrice is > 0m && snapshot.Price >= snapshot.OpenPrice.Value;
+        var reclaimPreviousClose = snapshot.PreviousClose is > 0m && snapshot.Price >= snapshot.PreviousClose.Value;
+        var detected = openGapPercent is < -0.5m &&
+            recoveryFromLowPercent is >= 1.5m &&
+            reclaimOpen &&
+            relativeVolume is >= 1.5m;
+
+        return new OpeningRedReversalSignal(
+            detected,
+            openGapPercent,
+            recoveryFromLowPercent,
+            reclaimOpen,
+            reclaimPreviousClose);
     }
 
     private static bool HasMixedSignals(IReadOnlyCollection<string> reasons)
@@ -661,6 +691,25 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
         }
 
         score = Clamp(score, 0m, 100m);
+    }
+
+    private static void ApplyOpeningRedReversalScoring(
+        OpeningRedReversalSignal openingRedReversal,
+        List<string> reasons,
+        List<MarketSignalScoreFactor> scoreBreakdown,
+        ref decimal score)
+    {
+        if (!openingRedReversal.Detected)
+        {
+            return;
+        }
+
+        AddScoreFactor(scoreBreakdown, reasons, "Opening red reversal", 6m, ref score);
+
+        if (openingRedReversal.ReclaimPreviousClose)
+        {
+            AddScoreFactor(scoreBreakdown, reasons, "Reclaimed previous close after red open", 4m, ref score);
+        }
     }
 
     private static void AddScoreFactor(
@@ -1146,4 +1195,11 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
         decimal? RiskReward1,
         decimal? RiskReward2,
         decimal? RiskReward3);
+
+    private sealed record OpeningRedReversalSignal(
+        bool Detected,
+        decimal? OpenGapPercent,
+        decimal? RecoveryFromLowPercent,
+        bool ReclaimOpen,
+        bool ReclaimPreviousClose);
 }

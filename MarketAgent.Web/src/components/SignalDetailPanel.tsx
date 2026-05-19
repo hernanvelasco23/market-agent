@@ -30,6 +30,7 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
 
       <div className="detail-status-row">
         <Pill value={signal.action} />
+        {signal.openingRedReversalDetected ? <span className="signal-flag">ORR</span> : null}
         <span className="detail-chip">{signal.confidence}</span>
         <span className="detail-chip">{signal.timeframe}</span>
       </div>
@@ -55,6 +56,20 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
           <Metric label="RSI" value={formatNumber(signal.rsi14)} />
         </div>
       </section>
+
+      {hasOpeningRedReversalData(signal) ? (
+        <section className="detail-section">
+          <div className="detail-section-heading">
+            <span>Opening Red Reversal</span>
+          </div>
+          <div className="detail-grid compact">
+            <Metric label="Open Gap" value={formatPercent(signal.openGapPercent)} tone={signal.openGapPercent != null && signal.openGapPercent < 0 ? "metric-value-risk" : undefined} />
+            <Metric label="Low Recovery" value={formatPercent(signal.openingRedReversalRecoveryFromLowPercent)} tone={signal.openingRedReversalDetected ? "metric-value-good" : undefined} />
+            <Metric label="Reclaim Open" value={formatBoolean(signal.reclaimOpen)} tone={signal.reclaimOpen ? "metric-value-good" : "metric-value-muted"} />
+            <Metric label="Reclaim Prev Close" value={formatBoolean(signal.reclaimPreviousClose)} tone={signal.reclaimPreviousClose ? "metric-value-good" : "metric-value-muted"} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="detail-section">
         <div className="detail-section-heading">
@@ -140,6 +155,10 @@ function getEma20Extension(signal: DashboardSignal) {
   return signal.extensionFromEma20Percent ?? signal.distanceFromEma20Percent;
 }
 
+function hasOpeningRedReversalData(signal: DashboardSignal) {
+  return Boolean(signal.openingRedReversalDetected);
+}
+
 function metricTone(value: number | null | undefined, kind: "rs" | "rvol" | "ext") {
   if (value == null) {
     return "metric-value-neutral";
@@ -175,4 +194,8 @@ function formatNumber(value?: number | null) {
 
 function formatPercent(value?: number | null) {
   return value == null ? "n/a" : `${formatNumber(value)}%`;
+}
+
+function formatBoolean(value?: boolean | null) {
+  return value == null ? "n/a" : value ? "Yes" : "No";
 }
