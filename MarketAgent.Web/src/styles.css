@@ -315,6 +315,21 @@ tbody tr.selected {
   vector-effect: non-scaling-stroke;
 }
 
+.signal-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 24px;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 999px;
+  padding: 0 8px;
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.12);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 .detail-card {
   position: sticky;
   top: 16px;

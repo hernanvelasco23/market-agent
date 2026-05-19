@@ -189,8 +189,14 @@ const mockBriefing: BriefingResult = {
       strongIntradayRecovery: true,
       gapPercent: -8.5,
       gapRecovery: true,
+      openingRedReversalDetected: true,
+      openGapPercent: -8.5,
+      openingRedReversalRecoveryFromLowPercent: 11.36,
+      reclaimOpen: true,
+      reclaimPreviousClose: false,
       scoreBreakdown: [
         { label: "Gap-down recovery", points: 10 },
+        { label: "Opening red reversal", points: 6 },
         { label: "Intraday weakness reduced due to recovery", points: -4 }
       ]
     },

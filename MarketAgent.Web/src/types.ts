@@ -30,6 +30,11 @@ export interface DashboardSignal {
   strongIntradayRecovery?: boolean;
   gapPercent?: number | null;
   gapRecovery?: boolean;
+  openingRedReversalDetected?: boolean;
+  openGapPercent?: number | null;
+  openingRedReversalRecoveryFromLowPercent?: number | null;
+  reclaimOpen?: boolean;
+  reclaimPreviousClose?: boolean;
   ema20Slope?: number | null;
   ema50Slope?: number | null;
   strongTrendSlope?: boolean;
@@ -101,6 +106,11 @@ export interface ApiMarketSignal {
   strongIntradayRecovery?: boolean;
   gapPercent?: number | null;
   gapRecovery?: boolean;
+  openingRedReversalDetected?: boolean;
+  openGapPercent?: number | null;
+  openingRedReversalRecoveryFromLowPercent?: number | null;
+  reclaimOpen?: boolean;
+  reclaimPreviousClose?: boolean;
   ema20Slope?: number | null;
   ema50Slope?: number | null;
   strongTrendSlope?: boolean;

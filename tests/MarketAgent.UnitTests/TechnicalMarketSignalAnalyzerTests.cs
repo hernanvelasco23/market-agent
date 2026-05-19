@@ -388,6 +388,232 @@ public sealed class TechnicalMarketSignalAnalyzerTests
     }
 
     [Fact]
+    public void Analyze_DetectsOpeningRedReversal_WhenRedOpenRecoversAboveOpen()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 99m,
+            openPrice: 98m,
+            highPrice: 100m,
+            lowPrice: 96m,
+            previousClose: 100m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.True(signal.OpeningRedReversalDetected);
+        Assert.Equal(-2m, signal.OpenGapPercent);
+        Assert.Equal(3.13m, signal.OpeningRedReversalRecoveryFromLowPercent);
+        Assert.True(signal.ReclaimOpen);
+        Assert.False(signal.ReclaimPreviousClose);
+        Assert.True(signal.Score < 100m);
+        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal" && factor.Points == 6m);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Reclaimed previous close after red open");
+    }
+
+    [Fact]
+    public void Analyze_DetectsStrongOpeningRedReversal_WhenPreviousCloseIsReclaimed()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 101m,
+            openPrice: 98m,
+            highPrice: 102m,
+            lowPrice: 96m,
+            previousClose: 100m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.True(signal.OpeningRedReversalDetected);
+        Assert.True(signal.ReclaimOpen);
+        Assert.True(signal.ReclaimPreviousClose);
+        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal" && factor.Points == 6m);
+        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Reclaimed previous close after red open" && factor.Points == 4m);
+    }
+
+    [Fact]
+    public void Analyze_DoesNotDetectOpeningRedReversal_WhenRedOpenFailsToReclaimOpen()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 97.5m,
+            openPrice: 98m,
+            highPrice: 100m,
+            lowPrice: 96m,
+            previousClose: 100m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.False(signal.OpeningRedReversalDetected);
+        Assert.False(signal.ReclaimOpen);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal");
+    }
+
+    [Fact]
+    public void Analyze_DoesNotDetectOpeningRedReversal_WhenOpenIsGreen()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 103m,
+            openPrice: 101m,
+            highPrice: 104m,
+            lowPrice: 100m,
+            previousClose: 100m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.False(signal.OpeningRedReversalDetected);
+        Assert.Equal(1m, signal.OpenGapPercent);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal");
+    }
+
+    [Fact]
+    public void Analyze_OpeningRedReversalHandlesZeroPreviousCloseAndLowSafely()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 99m,
+            openPrice: 98m,
+            highPrice: 100m,
+            lowPrice: 0m,
+            previousClose: 0m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.False(signal.OpeningRedReversalDetected);
+        Assert.Null(signal.OpenGapPercent);
+        Assert.Null(signal.OpeningRedReversalRecoveryFromLowPercent);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal");
+    }
+
+    [Fact]
+    public void Analyze_OpeningRedReversalHandlesMissingLowSafely()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 99m,
+            openPrice: 98m,
+            highPrice: 100m,
+            lowPrice: null,
+            previousClose: 100m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.False(signal.OpeningRedReversalDetected);
+        Assert.Null(signal.OpeningRedReversalRecoveryFromLowPercent);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal");
+    }
+
+    [Fact]
+    public void Analyze_OpeningRedReversalDoesNotTrigger_WhenAverageVolumeIsMissing()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: null,
+            Ema20: null,
+            Ema50: null,
+            Rsi14: null,
+            Atr14: null,
+            AverageVolume10: null,
+            AverageVolume20: 0m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 99m,
+            openPrice: 98m,
+            highPrice: 100m,
+            lowPrice: 96m,
+            previousClose: 100m,
+            volume: 1600000m);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot]));
+
+        Assert.Null(signal.RelativeVolume);
+        Assert.False(signal.OpeningRedReversalDetected);
+        Assert.DoesNotContain(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal");
+    }
+
+    [Fact]
+    public void Analyze_OpeningRedReversalBonusDoesNotPushScoreAbove100()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: 99m,
+            Ema20: 97m,
+            Ema50: 95m,
+            Rsi14: 68m,
+            Atr14: 2m,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 1000000m));
+        var snapshot = CreateSnapshot(
+            "RKLB",
+            price: 101m,
+            openPrice: 98m,
+            highPrice: 102m,
+            lowPrice: 90m,
+            previousClose: 100m,
+            volume: 2000000m);
+        var candles = CreateTrendingCandles("RKLB", start: 70m, step: 0.7m, count: 60);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot], candles));
+
+        Assert.True(signal.OpeningRedReversalDetected);
+        Assert.InRange(signal.Score, 0m, 100m);
+        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Opening red reversal" && factor.Points == 6m);
+        Assert.Contains(signal.ScoreBreakdown, factor => factor.Label == "Reclaimed previous close after red open" && factor.Points == 4m);
+    }
+
+    [Fact]
     public void Analyze_KeepsHighRiskClassification_WhenBelowEma20AndEma50()
     {
         var analyzer = CreateAnalyzer(new TechnicalIndicators(
@@ -421,9 +647,10 @@ public sealed class TechnicalMarketSignalAnalyzerTests
         decimal price,
         decimal openPrice,
         decimal highPrice,
-        decimal lowPrice,
+        decimal? lowPrice,
         decimal previousClose,
-        AssetType assetType = AssetType.Equity)
+        AssetType assetType = AssetType.Equity,
+        decimal volume = 1000000m)
     {
         return new MarketSnapshot(
             Guid.NewGuid(),
@@ -433,7 +660,7 @@ public sealed class TechnicalMarketSignalAnalyzerTests
             "USD",
             DateTime.SpecifyKind(new DateTime(2026, 5, 18, 15, 0, 0), DateTimeKind.Utc),
             "UnitTest",
-            volume: 1000000m,
+            volume,
             openPrice,
             highPrice,
             lowPrice,
