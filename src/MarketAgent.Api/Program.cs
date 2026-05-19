@@ -11,6 +11,7 @@ using MarketAgent.Infrastructure.Persistence;
 using MarketAgent.Infrastructure.Watchlists;
 
 var builder = WebApplication.CreateBuilder(args);
+const string FrontendCorsPolicy = "MarketAgentFrontend";
 
 builder.Services.AddSingleton<IWatchlistProvider, StaticWatchlistProvider>();
 builder.Services.AddHttpClient<EquityMarketDataProvider>();
@@ -43,6 +44,18 @@ builder.Services.Configure<HistoricalMarketDataOptions>(
 builder.Services.Configure<AzureOpenAIOptions>(
     builder.Configuration.GetSection(AzureOpenAIOptions.SectionName));
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        FrontendCorsPolicy,
+        policy => policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "https://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -55,6 +68,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors(FrontendCorsPolicy);
+}
 
 app.MapPost(
     "/api/ingestion/run",
