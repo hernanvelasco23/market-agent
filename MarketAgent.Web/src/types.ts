@@ -167,3 +167,24 @@ export interface DashboardState {
   briefing: BriefingResult;
   isMock: boolean;
 }
+
+export type AlertSeverity = "info" | "opportunity" | "warning" | "risk";
+
+export type AlertMetricTone = "positive" | "neutral" | "warning" | "risk";
+
+export interface DashboardAlertMetric {
+  label: string;
+  value: string;
+  tone?: AlertMetricTone;
+}
+
+export interface DashboardAlert {
+  id: string;
+  symbol: string;
+  title: string;
+  description: string;
+  severity: AlertSeverity;
+  setupType?: string;
+  action?: string;
+  metrics: DashboardAlertMetric[];
+}
