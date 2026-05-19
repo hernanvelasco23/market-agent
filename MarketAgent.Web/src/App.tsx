@@ -2,6 +2,7 @@ import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { buildSparklinePricesBySymbol, loadDashboard, loadHistoricalCandles, runBriefing, runIngestion, runSignals, toDashboardSignal } from "./api";
+import { SignalDetailPanel } from "./components/SignalDetailPanel";
 import { Sparkline } from "./components/Sparkline";
 import type { BriefingResult, DashboardSignal, IngestionResult, SparklinePricesBySymbol } from "./types";
 
@@ -24,6 +25,9 @@ export function App() {
     () => allSignals.find((signal) => signal.symbol === selectedSymbol) ?? allSignals[0] ?? null,
     [allSignals, selectedSymbol]
   );
+  const selectedSparklinePrices = selectedSignal
+    ? sparklinePrices[selectedSignal.symbol.toUpperCase()]
+    : null;
 
   useEffect(() => {
     refreshDashboard();
@@ -148,7 +152,7 @@ export function App() {
 
       <section className="workspace">
         <SignalsTable signals={allSignals} selectedSymbol={selectedSignal?.symbol ?? null} sparklinePrices={sparklinePrices} onSelect={setSelectedSymbol} />
-        <SignalDetail signal={selectedSignal} />
+        <SignalDetailPanel signal={selectedSignal} sparklinePrices={selectedSparklinePrices} />
       </section>
 
       <section className="briefing-lists">
@@ -308,62 +312,6 @@ function SignalsTable({
   );
 }
 
-function SignalDetail({ signal }: { signal: DashboardSignal | null }) {
-  if (!signal) {
-    return (
-      <article className="card detail-card">
-        <span className="empty">No signal selected</span>
-      </article>
-    );
-  }
-
-  return (
-    <aside className="card detail-card">
-      <div className="detail-header">
-        <div>
-          <span className="eyebrow">{signal.setupType}</span>
-          <h2>{signal.symbol}</h2>
-        </div>
-        <Score value={signal.score} large />
-      </div>
-      <p className="reason">{signal.reason}</p>
-
-      <div className="detail-grid">
-        <Metric label="Action" value={signal.action} />
-        <Metric label="Confidence" value={signal.confidence} />
-        <Metric label="Timeframe" value={signal.timeframe} />
-        <Metric label="Entry" value={formatMoney(signal.entry)} />
-        <Metric label="Stop" value={formatMoney(signal.stop)} />
-        <Metric label="TP1" value={formatMoney(signal.takeProfit1)} />
-        <Metric label="TP2" value={formatMoney(signal.takeProfit2 ?? signal.target)} />
-        <Metric label="TP3" value={formatMoney(signal.takeProfit3)} />
-        <Metric label="RR1" value={formatNumber(signal.riskReward1)} />
-        <Metric label="RR2" value={formatNumber(signal.riskReward2)} />
-        <Metric label="RR3" value={formatNumber(signal.riskReward3)} />
-        <Metric label="RS vs SPY" value={formatPercent(signal.relativeStrengthVsSpy)} />
-        <Metric label="RVOL" value={formatNumber(signal.relativeVolume)} />
-        <Metric label="EMA20 Extension" value={formatPercent(getEma20Extension(signal))} />
-        <Metric label="Recovery" value={formatPercent(signal.recoveryFromLowPercent)} />
-        <Metric label="Gap" value={formatPercent(signal.gapPercent)} />
-        <Metric label="EMA20 Slope" value={formatPercent(signal.ema20Slope)} />
-        <Metric label="EMA50 Slope" value={formatPercent(signal.ema50Slope)} />
-        <Metric label="Extension" value={signal.extensionRisk ?? "n/a"} />
-      </div>
-
-      <div className="breakdown">
-        <h3>Score Breakdown</h3>
-        {(signal.scoreBreakdown ?? []).length === 0 ? <span className="empty">No factors returned</span> : null}
-        {(signal.scoreBreakdown ?? []).map((factor) => (
-          <div className="factor" key={`${factor.label}-${factor.points}`}>
-            <span>{factor.label}</span>
-            <b className={factor.points >= 0 ? "positive" : "negative"}>{factor.points > 0 ? "+" : ""}{formatNumber(factor.points)}</b>
-          </div>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
 function ListCard({ title, items }: { title: string; items: string[] }) {
   return (
     <article className="card list-card">
@@ -377,15 +325,6 @@ function ListCard({ title, items }: { title: string; items: string[] }) {
         <p key={item}>{item}</p>
       ))}
     </article>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="metric">
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
   );
 }
 
@@ -449,10 +388,6 @@ function formatMoney(value?: number | null) {
 
 function formatNumber(value?: number | null) {
   return value == null ? "n/a" : Number(value).toFixed(2);
-}
-
-function formatPercent(value?: number | null) {
-  return value == null ? "n/a" : `${formatNumber(value)}%`;
 }
 
 function formatMetric(value?: number | null, suffix = "") {
