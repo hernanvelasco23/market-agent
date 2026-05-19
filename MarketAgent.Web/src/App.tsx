@@ -1,8 +1,9 @@
 import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles, TrendingUp, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { loadDashboard, runBriefing, runIngestion, runSignals, toDashboardSignal } from "./api";
-import type { BriefingResult, DashboardSignal, IngestionResult } from "./types";
+import { buildSparklinePricesBySymbol, loadDashboard, loadHistoricalCandles, runBriefing, runIngestion, runSignals, toDashboardSignal } from "./api";
+import { Sparkline } from "./components/Sparkline";
+import type { BriefingResult, DashboardSignal, IngestionResult, SparklinePricesBySymbol } from "./types";
 
 type Status = {
   text: string;
@@ -16,6 +17,7 @@ export function App() {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [ingestion, setIngestion] = useState<IngestionResult | null>(null);
   const [usingMock, setUsingMock] = useState(false);
+  const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
 
   const allSignals = briefing?.allSignals ?? [];
   const selectedSignal = useMemo(
@@ -50,6 +52,7 @@ export function App() {
       setBriefing(state.briefing);
       setUsingMock(state.isMock);
       setSelectedSymbol(state.briefing.allSignals[0]?.symbol ?? null);
+      await refreshSparklines();
       if (state.isMock) {
         setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
       }
@@ -82,6 +85,7 @@ export function App() {
         watchItems: current?.watchItems ?? []
       }));
       setSelectedSymbol(all[0]?.symbol ?? null);
+      await refreshSparklines();
     });
   }
 
@@ -91,7 +95,17 @@ export function App() {
       setUsingMock(false);
       setBriefing(result);
       setSelectedSymbol(result.allSignals[0]?.symbol ?? null);
+      await refreshSparklines();
     });
+  }
+
+  async function refreshSparklines() {
+    try {
+      const historical = await loadHistoricalCandles();
+      setSparklinePrices(buildSparklinePricesBySymbol(historical.candles));
+    } catch {
+      setSparklinePrices({});
+    }
   }
 
   return (
@@ -133,7 +147,7 @@ export function App() {
       </section>
 
       <section className="workspace">
-        <SignalsTable signals={allSignals} selectedSymbol={selectedSignal?.symbol ?? null} onSelect={setSelectedSymbol} />
+        <SignalsTable signals={allSignals} selectedSymbol={selectedSignal?.symbol ?? null} sparklinePrices={sparklinePrices} onSelect={setSelectedSymbol} />
         <SignalDetail signal={selectedSignal} />
       </section>
 
@@ -223,10 +237,12 @@ function SignalGroup({
 function SignalsTable({
   signals,
   selectedSymbol,
+  sparklinePrices,
   onSelect
 }: {
   signals: DashboardSignal[];
   selectedSymbol: string | null;
+  sparklinePrices: SparklinePricesBySymbol;
   onSelect: (symbol: string) => void;
 }) {
   return (
@@ -241,6 +257,7 @@ function SignalsTable({
           <thead>
             <tr>
               <th>Symbol</th>
+              <th>Trend</th>
               <th>Score</th>
               <th>Setup</th>
               <th>Action</th>
@@ -257,28 +274,33 @@ function SignalsTable({
             </tr>
           </thead>
           <tbody>
-            {signals.map((signal) => (
-              <tr
-                key={signal.symbol}
-                className={signal.symbol === selectedSymbol ? "selected" : ""}
-                onClick={() => onSelect(signal.symbol)}
-              >
-                <td className="symbol-cell">{signal.symbol}</td>
-                <td><Score value={signal.score} /></td>
-                <td>{signal.setupType}</td>
-                <td><Pill value={signal.action} /></td>
-                <td>{signal.confidence}</td>
-                <td>{signal.timeframe}</td>
-                <td><SignalMetric value={signal.relativeStrengthVsSpy} kind="rs" suffix="%" /></td>
-                <td><SignalMetric value={signal.relativeVolume} kind="rvol" /></td>
-                <td><SignalMetric value={getEma20Extension(signal)} kind="ext" suffix="%" /></td>
-                <td>{formatNumber(signal.rsi14)}</td>
-                <td>{formatMoney(signal.ema9)}</td>
-                <td>{formatMoney(signal.ema20)}</td>
-                <td>{formatMoney(signal.ema50)}</td>
-                <td>{formatNumber(signal.atr14)}</td>
-              </tr>
-            ))}
+            {signals.map((signal) => {
+              const prices = sparklinePrices[signal.symbol.toUpperCase()];
+
+              return (
+                <tr
+                  key={signal.symbol}
+                  className={signal.symbol === selectedSymbol ? "selected" : ""}
+                  onClick={() => onSelect(signal.symbol)}
+                >
+                  <td className="symbol-cell">{signal.symbol}</td>
+                  <td className="sparkline-cell"><Sparkline prices={prices} width={96} height={28} /></td>
+                  <td><Score value={signal.score} /></td>
+                  <td>{signal.setupType}</td>
+                  <td><Pill value={signal.action} /></td>
+                  <td>{signal.confidence}</td>
+                  <td>{signal.timeframe}</td>
+                  <td><SignalMetric value={signal.relativeStrengthVsSpy} kind="rs" suffix="%" /></td>
+                  <td><SignalMetric value={signal.relativeVolume} kind="rvol" /></td>
+                  <td><SignalMetric value={getEma20Extension(signal)} kind="ext" suffix="%" /></td>
+                  <td>{formatNumber(signal.rsi14)}</td>
+                  <td>{formatMoney(signal.ema9)}</td>
+                  <td>{formatMoney(signal.ema20)}</td>
+                  <td>{formatMoney(signal.ema50)}</td>
+                  <td>{formatNumber(signal.atr14)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

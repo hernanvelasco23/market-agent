@@ -134,6 +134,25 @@ export interface IngestionResult {
   }>;
 }
 
+export interface HistoricalCandle {
+  symbol: string;
+  occurredAtUtc: string;
+  close: number;
+}
+
+export interface HistoricalMarketDataResult {
+  generatedAtUtc: string;
+  requestedDays: number;
+  candles: HistoricalCandle[];
+  failures: Array<{
+    symbol: string;
+    reason: string;
+    source?: string | null;
+  }>;
+}
+
+export type SparklinePricesBySymbol = Record<string, number[]>;
+
 export interface DashboardState {
   briefing: BriefingResult;
   isMock: boolean;
