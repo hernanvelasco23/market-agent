@@ -265,7 +265,7 @@ h1 {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1160px;
+  min-width: 1260px;
 }
 
 th,
@@ -297,6 +297,22 @@ tbody tr.selected {
 .symbol-cell {
   color: #f8fbff;
   font-weight: 800;
+}
+
+.sparkline-cell {
+  width: 118px;
+}
+
+.sparkline {
+  display: block;
+}
+
+.sparkline-placeholder {
+  stroke: rgba(127, 145, 171, 0.42);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 3 5;
+  vector-effect: non-scaling-stroke;
 }
 
 .detail-card {

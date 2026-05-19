@@ -3,8 +3,11 @@ import type {
   BriefingResult,
   DashboardSignal,
   DashboardState,
+  HistoricalCandle,
+  HistoricalMarketDataResult,
   IngestionResult,
-  SignalRunResult
+  SignalRunResult,
+  SparklinePricesBySymbol
 } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_MARKETAGENT_API_BASE_URL ?? "http://localhost:5215";
@@ -19,6 +22,10 @@ export async function runSignals(): Promise<SignalRunResult> {
 
 export async function runBriefing(): Promise<BriefingResult> {
   return postJson<BriefingResult>("/api/briefing/run");
+}
+
+export async function loadHistoricalCandles(days = 60): Promise<HistoricalMarketDataResult> {
+  return getJson<HistoricalMarketDataResult>(`/api/historical/candles?days=${days}`);
 }
 
 export async function loadDashboard(): Promise<DashboardState> {
@@ -52,6 +59,29 @@ export function toDashboardSignal(signal: ApiMarketSignal): DashboardSignal {
   };
 }
 
+export function buildSparklinePricesBySymbol(candles: HistoricalCandle[], limit = 20): SparklinePricesBySymbol {
+  const grouped = candles.reduce<Record<string, HistoricalCandle[]>>((accumulator, candle) => {
+    if (!Number.isFinite(candle.close)) {
+      return accumulator;
+    }
+
+    const symbol = candle.symbol.toUpperCase();
+    accumulator[symbol] = [...(accumulator[symbol] ?? []), candle];
+    return accumulator;
+  }, {});
+
+  return Object.fromEntries(
+    Object.entries(grouped).map(([symbol, symbolCandles]) => [
+      symbol,
+      symbolCandles
+        .slice()
+        .sort((left, right) => Date.parse(left.occurredAtUtc) - Date.parse(right.occurredAtUtc))
+        .slice(-limit)
+        .map((candle) => candle.close)
+    ])
+  );
+}
+
 function createBriefingFromSignals(result: SignalRunResult): BriefingResult {
   const allSignals = result.signals.map(toDashboardSignal);
   const topOpportunities = allSignals.filter(
@@ -77,6 +107,20 @@ function createBriefingFromSignals(result: SignalRunResult): BriefingResult {
       .filter((signal) => !topOpportunities.includes(signal) && !watchlistPullbacks.includes(signal) && !topRisks.includes(signal))
       .map((signal) => `${signal.symbol}: ${signal.reason}`)
   };
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`${path} failed with ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 async function postJson<T>(path: string): Promise<T> {
