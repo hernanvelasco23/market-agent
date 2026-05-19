@@ -2,11 +2,14 @@ using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Historical;
 using MarketAgent.Application.Models;
 using MarketAgent.Domain.Entities;
+using MarketAgent.Domain.Enums;
 
 namespace MarketAgent.Application.Briefing;
 
 public sealed class MarketBriefingService : IMarketBriefingService
 {
+    private static readonly TrackedAsset SpyBenchmark = new("SPY", AssetType.Etf, "USD");
+
     private readonly IMarketSnapshotRepository _marketSnapshotRepository;
     private readonly IMarketBriefingGenerator _marketBriefingGenerator;
     private readonly IMarketSignalAnalyzer _marketSignalAnalyzer;
@@ -58,13 +61,21 @@ public sealed class MarketBriefingService : IMarketBriefingService
     {
         var candles = new List<MarketCandle>();
 
-        foreach (var snapshot in snapshots
+        var assets = snapshots
             .GroupBy(item => item.Symbol)
-            .Select(group => group.OrderByDescending(item => item.CapturedAtUtc).First()))
+            .Select(group => group.OrderByDescending(item => item.CapturedAtUtc).First())
+            .Select(snapshot => new TrackedAsset(snapshot.Symbol, snapshot.AssetType, snapshot.Currency))
+            .ToList();
+
+        if (!assets.Any(asset => asset.Symbol.Equals(SpyBenchmark.Symbol, StringComparison.OrdinalIgnoreCase)))
+        {
+            assets.Add(SpyBenchmark);
+        }
+
+        foreach (var asset in assets)
         {
             try
             {
-                var asset = new TrackedAsset(snapshot.Symbol, snapshot.AssetType, snapshot.Currency);
                 candles.AddRange(await _historicalMarketDataService.GetCandlesAsync(
                     asset,
                     HistoricalMarketDataService.DefaultDays,

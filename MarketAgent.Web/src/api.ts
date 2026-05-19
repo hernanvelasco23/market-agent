@@ -47,6 +47,7 @@ export function toDashboardSignal(signal: ApiMarketSignal): DashboardSignal {
   return {
     ...signal,
     rsi14: signal.rsi,
+    extensionFromEma20Percent: signal.extensionFromEma20Percent ?? signal.distanceFromEma20Percent,
     scoreBreakdown: signal.scoreBreakdown ?? []
   };
 }
@@ -112,6 +113,10 @@ const mockBriefing: BriefingResult = {
       ema20: 128.7,
       ema50: 121.6,
       atr14: 3.2,
+      relativeStrengthVsSpy: 2.4,
+      relativeVolume: 1.8,
+      distanceFromEma20Percent: 4.2,
+      extensionFromEma20Percent: 4.2,
       entry: 134.1,
       stop: 130.9,
       takeProfit1: 138.9,
@@ -134,6 +139,9 @@ const mockBriefing: BriefingResult = {
       timeframe: "WatchOnly",
       reason: "strong recovery after gap-down; buyers absorbed early selling pressure",
       recoveryFromLowPercent: 88,
+      relativeStrengthVsSpy: 4.1,
+      relativeVolume: 2.6,
+      extensionFromEma20Percent: 1.4,
       strongIntradayRecovery: true,
       gapPercent: -8.5,
       gapRecovery: true,
@@ -152,6 +160,10 @@ const mockBriefing: BriefingResult = {
       reason: "price below EMA20; price below EMA50",
       ema20: 13.8,
       ema50: 15.1,
+      relativeStrengthVsSpy: -1.8,
+      relativeVolume: 0.7,
+      distanceFromEma20Percent: -27.5,
+      extensionFromEma20Percent: -27.5,
       scoreBreakdown: [
         { label: "Price below EMA20", points: -6 },
         { label: "Price below EMA50", points: -8 }
