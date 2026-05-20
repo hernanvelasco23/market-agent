@@ -9,9 +9,11 @@ using MarketAgent.Infrastructure.Indicators;
 using MarketAgent.Infrastructure.MarketData;
 using MarketAgent.Infrastructure.Persistence;
 using MarketAgent.Infrastructure.Watchlists;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "MarketAgentFrontend";
+const string SqlServerConnectionStringName = "DefaultConnection";
 
 builder.Services.AddSingleton<IWatchlistProvider, StaticWatchlistProvider>();
 builder.Services.AddHttpClient<EquityMarketDataProvider>();
@@ -30,6 +32,17 @@ builder.Services.AddHttpClient(nameof(SemanticKernelMarketBriefingGenerator));
 builder.Services.AddSingleton<IMarketDataProviderResolver, MarketDataProviderResolver>();
 builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
 builder.Services.AddSingleton<IHistoricalCandleRepository, InMemoryHistoricalCandleRepository>();
+var sqlServerConnectionString = builder.Configuration.GetConnectionString(SqlServerConnectionStringName);
+if (string.IsNullOrWhiteSpace(sqlServerConnectionString))
+{
+    builder.Services.AddScoped<ISignalSnapshotHistoryRepository, NoOpSignalSnapshotHistoryRepository>();
+}
+else
+{
+    builder.Services.AddDbContext<MarketAgentDbContext>(options =>
+        options.UseSqlServer(sqlServerConnectionString));
+    builder.Services.AddScoped<ISignalSnapshotHistoryRepository, EfSignalSnapshotHistoryRepository>();
+}
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
 builder.Services.AddScoped<IHistoricalMarketDataService, HistoricalMarketDataService>();
 builder.Services.AddScoped<IMarketBriefingService, MarketBriefingService>();
