@@ -4,7 +4,7 @@ const WATCHLIST_STORAGE_KEY = "marketagent.customWatchlists";
 
 export const allSignalsWatchlist: Watchlist = {
   id: "all",
-  name: "All Signals",
+  name: "All",
   symbols: [],
   kind: "all"
 };
