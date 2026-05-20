@@ -163,6 +163,31 @@ export interface HistoricalMarketDataResult {
 
 export type SparklinePricesBySymbol = Record<string, number[]>;
 
+export interface SignalPerformancePreviewItem {
+  signalType: string;
+  sampleCount: number;
+  isInsufficientData: boolean;
+  hasLowSampleWarning: boolean;
+  averageForwardReturn1Day?: number | null;
+  averageForwardReturn3Day?: number | null;
+  averageForwardReturn5Day?: number | null;
+  winRate1Day?: number | null;
+  winRate3Day?: number | null;
+  winRate5Day?: number | null;
+}
+
+export interface SignalPerformancePreviewResult {
+  generatedAtUtc: string;
+  requestedDays: number;
+  items: SignalPerformancePreviewItem[];
+  warnings: string[];
+  failures: Array<{
+    symbol: string;
+    reason: string;
+    source?: string | null;
+  }>;
+}
+
 export interface DashboardState {
   briefing: BriefingResult;
   isMock: boolean;

@@ -168,6 +168,135 @@ h1 {
   margin-bottom: 14px;
 }
 
+.performance-preview {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.performance-note {
+  margin-top: 8px;
+  color: #9fb0c9;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.performance-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  border: 1px solid rgba(250, 204, 21, 0.22);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.1);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.performance-item {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  background: #101722;
+}
+
+.performance-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.performance-item-header strong {
+  color: #f8fbff;
+  font-size: 0.92rem;
+}
+
+.performance-item-header span {
+  color: #9fb0c9;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.performance-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.performance-metric {
+  display: inline-grid;
+  gap: 3px;
+  min-width: 0;
+  border-radius: 8px;
+  padding: 7px;
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.performance-metric small {
+  color: #7f91ab;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.performance-metric b {
+  color: #d8e3f3;
+  font-size: 0.78rem;
+}
+
+.performance-metric b.positive {
+  color: #86efac;
+}
+
+.performance-metric b.negative {
+  color: #fca5a5;
+}
+
+.performance-warning {
+  justify-self: start;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.14);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.performance-warning.subtle {
+  color: #99f6e4;
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.performance-cautions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.performance-cautions span {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #9fb0c9;
+  background: rgba(148, 163, 184, 0.08);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .watchlist-header,
 .watchlist-controls,
 .watchlist-editor {
@@ -983,6 +1112,7 @@ tbody tr.selected {
   .hero-grid,
   .signal-groups,
   .briefing-lists,
+  .performance-grid,
   .alert-list {
     grid-template-columns: 1fr;
   }

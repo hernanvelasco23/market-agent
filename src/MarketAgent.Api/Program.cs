@@ -37,6 +37,7 @@ builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefin
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>();
 builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
+builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePreviewService>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
 builder.Services.Configure<HistoricalMarketDataOptions>(
@@ -103,6 +104,17 @@ app.MapPost(
     async (IMarketSignalService marketSignalService, CancellationToken cancellationToken) =>
     {
         var result = await marketSignalService.GenerateAsync(cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/signals/performance-preview",
+    async (ISignalPerformancePreviewService signalPerformancePreviewService, int? days, CancellationToken cancellationToken) =>
+    {
+        var result = await signalPerformancePreviewService.GenerateAsync(
+            days ?? 180,
+            cancellationToken);
+
         return Results.Ok(result);
     });
 
