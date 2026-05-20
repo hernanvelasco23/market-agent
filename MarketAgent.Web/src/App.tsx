@@ -4,9 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { buildSparklinePricesBySymbol, loadDashboard, loadHistoricalCandles, runBriefing, runIngestion, runSignals, toDashboardSignal } from "./api";
 import { deriveDashboardAlerts } from "./alerts";
 import { AlertCenter } from "./components/AlertCenter";
+import { SignalFilterBar } from "./components/SignalFilterBar";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
 import { Sparkline } from "./components/Sparkline";
-import type { BriefingResult, DashboardSignal, IngestionResult, SparklinePricesBySymbol } from "./types";
+import { WatchlistSelector } from "./components/WatchlistSelector";
+import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasActiveSignalFilters } from "./signalFilters";
+import type { BriefingResult, DashboardSignal, IngestionResult, SignalFilters, SparklinePricesBySymbol, Watchlist } from "./types";
+import { allSignalsWatchlist, applyWatchlistFilter, getAllWatchlists, loadCustomWatchlists, saveCustomWatchlists } from "./watchlists";
 
 type Status = {
   text: string;
@@ -21,12 +25,33 @@ export function App() {
   const [ingestion, setIngestion] = useState<IngestionResult | null>(null);
   const [usingMock, setUsingMock] = useState(false);
   const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
+  const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
+  const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
+  const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
 
   const allSignals = briefing?.allSignals ?? [];
-  const alerts = useMemo(() => deriveDashboardAlerts(allSignals), [allSignals]);
+  const watchlists = useMemo(() => getAllWatchlists(customWatchlists), [customWatchlists]);
+  const activeWatchlist = watchlists.find((watchlist) => watchlist.id === activeWatchlistId) ?? allSignalsWatchlist;
+  const watchlistSignals = useMemo(() => applyWatchlistFilter(allSignals, activeWatchlist), [allSignals, activeWatchlist]);
+  const alerts = useMemo(() => deriveDashboardAlerts(watchlistSignals), [watchlistSignals]);
+  const setupTypes = useMemo(() => getAvailableSetupTypes(watchlistSignals), [watchlistSignals]);
+  const filteredSignals = useMemo(() => applySignalFilters(watchlistSignals, filters), [watchlistSignals, filters]);
+  const hasActiveFilters = hasActiveSignalFilters(filters);
+  const topOpportunities = useMemo(
+    () => applyWatchlistFilter(briefing?.topOpportunities ?? [], activeWatchlist),
+    [briefing?.topOpportunities, activeWatchlist]
+  );
+  const watchlistPullbacks = useMemo(
+    () => applyWatchlistFilter(briefing?.watchlistPullbacks ?? [], activeWatchlist),
+    [briefing?.watchlistPullbacks, activeWatchlist]
+  );
+  const topRisks = useMemo(
+    () => applyWatchlistFilter(briefing?.topRisks ?? [], activeWatchlist),
+    [briefing?.topRisks, activeWatchlist]
+  );
   const selectedSignal = useMemo(
-    () => allSignals.find((signal) => signal.symbol === selectedSymbol) ?? allSignals[0] ?? null,
-    [allSignals, selectedSymbol]
+    () => filteredSignals.find((signal) => signal.symbol === selectedSymbol) ?? filteredSignals[0] ?? null,
+    [filteredSignals, selectedSymbol]
   );
   const selectedSparklinePrices = selectedSignal
     ? sparklinePrices[selectedSignal.symbol.toUpperCase()]
@@ -35,6 +60,32 @@ export function App() {
   useEffect(() => {
     refreshDashboard();
   }, []);
+
+  useEffect(() => {
+    saveCustomWatchlists(customWatchlists);
+  }, [customWatchlists]);
+
+  useEffect(() => {
+    if (!watchlists.some((watchlist) => watchlist.id === activeWatchlistId)) {
+      setActiveWatchlistId(allSignalsWatchlist.id);
+    }
+  }, [activeWatchlistId, watchlists]);
+
+  useEffect(() => {
+    const fallbackSymbol = filteredSignals[0]?.symbol ?? null;
+
+    if (selectedSymbol == null) {
+      if (fallbackSymbol != null) {
+        setSelectedSymbol(fallbackSymbol);
+      }
+
+      return;
+    }
+
+    if (!filteredSignals.some((signal) => signal.symbol === selectedSymbol)) {
+      setSelectedSymbol(fallbackSymbol);
+    }
+  }, [filteredSignals, selectedSymbol]);
 
   async function withAction(label: string, action: () => Promise<void>) {
     setLoadingAction(label);
@@ -115,6 +166,24 @@ export function App() {
     }
   }
 
+  function handleSaveCustomWatchlist(watchlist: Watchlist) {
+    setCustomWatchlists((current) => {
+      const existingIndex = current.findIndex((item) => item.id === watchlist.id);
+      if (existingIndex < 0) {
+        return [...current, watchlist];
+      }
+
+      return current.map((item) => (item.id === watchlist.id ? watchlist : item));
+    });
+  }
+
+  function handleRemoveCustomWatchlist(id: string) {
+    setCustomWatchlists((current) => current.filter((watchlist) => watchlist.id !== id));
+    if (activeWatchlistId === id) {
+      setActiveWatchlistId(allSignalsWatchlist.id);
+    }
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -148,15 +217,43 @@ export function App() {
       </section>
 
       <section className="signal-groups">
-        <SignalGroup title="Top Opportunities" tone="opportunity" icon={<Sparkles size={17} />} signals={briefing?.topOpportunities ?? []} onSelect={setSelectedSymbol} />
-        <SignalGroup title="Watchlist Pullbacks" tone="watch" icon={<Search size={17} />} signals={briefing?.watchlistPullbacks ?? []} onSelect={setSelectedSymbol} />
-        <SignalGroup title="Top Risks" tone="risk" icon={<ShieldAlert size={17} />} signals={briefing?.topRisks ?? []} onSelect={setSelectedSymbol} />
+        <SignalGroup title="Top Opportunities" tone="opportunity" icon={<Sparkles size={17} />} signals={topOpportunities} onSelect={setSelectedSymbol} />
+        <SignalGroup title="Watchlist Pullbacks" tone="watch" icon={<Search size={17} />} signals={watchlistPullbacks} onSelect={setSelectedSymbol} />
+        <SignalGroup title="Top Risks" tone="risk" icon={<ShieldAlert size={17} />} signals={topRisks} onSelect={setSelectedSymbol} />
       </section>
 
       <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
 
+      <WatchlistSelector
+        watchlists={watchlists}
+        activeWatchlistId={activeWatchlist.id}
+        visibleCount={watchlistSignals.length}
+        totalCount={allSignals.length}
+        onSelect={setActiveWatchlistId}
+        onSaveCustom={handleSaveCustomWatchlist}
+        onRemoveCustom={handleRemoveCustomWatchlist}
+      />
+
+      <SignalFilterBar
+        filters={filters}
+        setupTypes={setupTypes}
+        visibleCount={filteredSignals.length}
+        totalCount={watchlistSignals.length}
+        onChange={setFilters}
+        onReset={() => setFilters(defaultSignalFilters)}
+      />
+
       <section className="workspace">
-        <SignalsTable signals={allSignals} selectedSymbol={selectedSignal?.symbol ?? null} sparklinePrices={sparklinePrices} onSelect={setSelectedSymbol} />
+        <SignalsTable
+          signals={filteredSignals}
+          totalSignals={watchlistSignals.length}
+          hasLoadedSignals={allSignals.length > 0}
+          hasActiveFilters={hasActiveFilters}
+          selectedSymbol={selectedSignal?.symbol ?? null}
+          sparklinePrices={sparklinePrices}
+          onSelect={setSelectedSymbol}
+          onResetFilters={() => setFilters(defaultSignalFilters)}
+        />
         <SignalDetailPanel signal={selectedSignal} sparklinePrices={selectedSparklinePrices} />
       </section>
 
@@ -245,14 +342,22 @@ function SignalGroup({
 
 function SignalsTable({
   signals,
+  totalSignals,
+  hasLoadedSignals,
+  hasActiveFilters,
   selectedSymbol,
   sparklinePrices,
-  onSelect
+  onSelect,
+  onResetFilters
 }: {
   signals: DashboardSignal[];
+  totalSignals: number;
+  hasLoadedSignals: boolean;
+  hasActiveFilters: boolean;
   selectedSymbol: string | null;
   sparklinePrices: SparklinePricesBySymbol;
   onSelect: (symbol: string) => void;
+  onResetFilters: () => void;
 }) {
   return (
     <article className="card table-card">
@@ -284,6 +389,28 @@ function SignalsTable({
             </tr>
           </thead>
           <tbody>
+            {signals.length === 0 ? (
+              <tr>
+                <td className="table-empty" colSpan={16}>
+                  {!hasLoadedSignals ? (
+                    <div className="table-empty-state">
+                      <strong>No signals loaded yet.</strong>
+                      <span>Run signals or generate a briefing to populate the dashboard.</span>
+                    </div>
+                  ) : (
+                    <div className="table-empty-state">
+                      <strong>No signals match the current watchlist or filters.</strong>
+                      <span>Try another watchlist, clearing filters, or lowering thresholds.</span>
+                      {hasActiveFilters ? (
+                        <button className="filter-reset inline" type="button" onClick={onResetFilters}>
+                          Clear filters
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ) : null}
             {signals.map((signal) => {
               const prices = sparklinePrices[signal.symbol.toUpperCase()];
 
