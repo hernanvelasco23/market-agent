@@ -1,15 +1,33 @@
 import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles, TrendingUp, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { buildSparklinePricesBySymbol, loadDashboard, loadHistoricalCandles, runBriefing, runIngestion, runSignals, toDashboardSignal } from "./api";
+import {
+  buildSparklinePricesBySymbol,
+  loadDashboard,
+  loadHistoricalCandles,
+  loadSignalPerformancePreview,
+  runBriefing,
+  runIngestion,
+  runSignals,
+  toDashboardSignal
+} from "./api";
 import { deriveDashboardAlerts } from "./alerts";
 import { AlertCenter } from "./components/AlertCenter";
 import { SignalFilterBar } from "./components/SignalFilterBar";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
+import { SignalPerformancePreviewPanel } from "./components/SignalPerformancePreviewPanel";
 import { Sparkline } from "./components/Sparkline";
 import { WatchlistSelector } from "./components/WatchlistSelector";
 import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasActiveSignalFilters } from "./signalFilters";
-import type { BriefingResult, DashboardSignal, IngestionResult, SignalFilters, SparklinePricesBySymbol, Watchlist } from "./types";
+import type {
+  BriefingResult,
+  DashboardSignal,
+  IngestionResult,
+  SignalFilters,
+  SignalPerformancePreviewResult,
+  SparklinePricesBySymbol,
+  Watchlist
+} from "./types";
 import { allSignalsWatchlist, applyWatchlistFilter, getAllWatchlists, loadCustomWatchlists, saveCustomWatchlists } from "./watchlists";
 
 type Status = {
@@ -25,6 +43,8 @@ export function App() {
   const [ingestion, setIngestion] = useState<IngestionResult | null>(null);
   const [usingMock, setUsingMock] = useState(false);
   const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
+  const [performancePreview, setPerformancePreview] = useState<SignalPerformancePreviewResult | null>(null);
+  const [performancePreviewUnavailable, setPerformancePreviewUnavailable] = useState(false);
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
   const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
   const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
@@ -110,7 +130,7 @@ export function App() {
       setBriefing(state.briefing);
       setUsingMock(state.isMock);
       setSelectedSymbol(state.briefing.allSignals[0]?.symbol ?? null);
-      await refreshSparklines();
+      await Promise.all([refreshSparklines(), refreshPerformancePreview()]);
       if (state.isMock) {
         setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
       }
@@ -143,7 +163,7 @@ export function App() {
         watchItems: current?.watchItems ?? []
       }));
       setSelectedSymbol(all[0]?.symbol ?? null);
-      await refreshSparklines();
+      await Promise.all([refreshSparklines(), refreshPerformancePreview()]);
     });
   }
 
@@ -153,7 +173,7 @@ export function App() {
       setUsingMock(false);
       setBriefing(result);
       setSelectedSymbol(result.allSignals[0]?.symbol ?? null);
-      await refreshSparklines();
+      await Promise.all([refreshSparklines(), refreshPerformancePreview()]);
     });
   }
 
@@ -163,6 +183,17 @@ export function App() {
       setSparklinePrices(buildSparklinePricesBySymbol(historical.candles));
     } catch {
       setSparklinePrices({});
+    }
+  }
+
+  async function refreshPerformancePreview() {
+    try {
+      const preview = await loadSignalPerformancePreview();
+      setPerformancePreview(preview);
+      setPerformancePreviewUnavailable(false);
+    } catch {
+      setPerformancePreview(null);
+      setPerformancePreviewUnavailable(true);
     }
   }
 
@@ -223,6 +254,8 @@ export function App() {
       </section>
 
       <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
+
+      <SignalPerformancePreviewPanel preview={performancePreview} unavailable={performancePreviewUnavailable} />
 
       <WatchlistSelector
         watchlists={watchlists}
