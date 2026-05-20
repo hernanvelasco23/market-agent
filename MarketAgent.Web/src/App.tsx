@@ -5,6 +5,7 @@ import {
   buildSparklinePricesBySymbol,
   loadDashboard,
   loadHistoricalCandles,
+  loadSignalOutcomeSummary,
   loadSignalPerformancePreview,
   runBriefing,
   runIngestion,
@@ -15,6 +16,7 @@ import { deriveDashboardAlerts } from "./alerts";
 import { AlertCenter } from "./components/AlertCenter";
 import { SignalFilterBar } from "./components/SignalFilterBar";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
+import { SignalOutcomeSummaryPanel } from "./components/SignalOutcomeSummaryPanel";
 import { SignalPerformancePreviewPanel } from "./components/SignalPerformancePreviewPanel";
 import { Sparkline } from "./components/Sparkline";
 import { WatchlistSelector } from "./components/WatchlistSelector";
@@ -24,6 +26,7 @@ import type {
   DashboardSignal,
   IngestionResult,
   SignalFilters,
+  SignalOutcomeSummary,
   SignalPerformancePreviewResult,
   SparklinePricesBySymbol,
   Watchlist
@@ -45,6 +48,9 @@ export function App() {
   const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
   const [performancePreview, setPerformancePreview] = useState<SignalPerformancePreviewResult | null>(null);
   const [performancePreviewUnavailable, setPerformancePreviewUnavailable] = useState(false);
+  const [outcomeSummary, setOutcomeSummary] = useState<SignalOutcomeSummary | null>(null);
+  const [outcomeSummaryLoading, setOutcomeSummaryLoading] = useState(false);
+  const [outcomeSummaryUnavailable, setOutcomeSummaryUnavailable] = useState(false);
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
   const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
   const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
@@ -130,7 +136,7 @@ export function App() {
       setBriefing(state.briefing);
       setUsingMock(state.isMock);
       setSelectedSymbol(state.briefing.allSignals[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview()]);
+      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary()]);
       if (state.isMock) {
         setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
       }
@@ -141,6 +147,7 @@ export function App() {
     await withAction("Run ingestion", async () => {
       const result = await runIngestion();
       setIngestion(result);
+      await refreshOutcomeSummary();
     });
   }
 
@@ -163,7 +170,7 @@ export function App() {
         watchItems: current?.watchItems ?? []
       }));
       setSelectedSymbol(all[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview()]);
+      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary()]);
     });
   }
 
@@ -173,7 +180,7 @@ export function App() {
       setUsingMock(false);
       setBriefing(result);
       setSelectedSymbol(result.allSignals[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview()]);
+      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary()]);
     });
   }
 
@@ -194,6 +201,21 @@ export function App() {
     } catch {
       setPerformancePreview(null);
       setPerformancePreviewUnavailable(true);
+    }
+  }
+
+  async function refreshOutcomeSummary() {
+    setOutcomeSummaryLoading(true);
+
+    try {
+      const summary = await loadSignalOutcomeSummary();
+      setOutcomeSummary(summary);
+      setOutcomeSummaryUnavailable(false);
+    } catch {
+      setOutcomeSummary(null);
+      setOutcomeSummaryUnavailable(true);
+    } finally {
+      setOutcomeSummaryLoading(false);
     }
   }
 
@@ -254,6 +276,12 @@ export function App() {
       </section>
 
       <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
+
+      <SignalOutcomeSummaryPanel
+        loading={outcomeSummaryLoading}
+        summary={outcomeSummary}
+        unavailable={outcomeSummaryUnavailable}
+      />
 
       <SignalPerformancePreviewPanel preview={performancePreview} unavailable={performancePreviewUnavailable} />
 

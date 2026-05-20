@@ -188,6 +188,20 @@ export interface SignalPerformancePreviewResult {
   }>;
 }
 
+export interface SignalOutcomeSummary {
+  generatedAtUtc: string;
+  totalCount: number;
+  pendingCount: number;
+  countWith15m: number;
+  averageReturn15m?: number | null;
+  countWith1h: number;
+  averageReturn1h?: number | null;
+  best15mSymbol?: string | null;
+  best15mReturnPercent?: number | null;
+  worst15mSymbol?: string | null;
+  worst15mReturnPercent?: number | null;
+}
+
 export interface DashboardState {
   briefing: BriefingResult;
   isMock: boolean;
