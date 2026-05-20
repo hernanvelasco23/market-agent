@@ -4,6 +4,7 @@ using MarketAgent.Application.Models;
 using MarketAgent.Application.Signals;
 using MarketAgent.Domain.Entities;
 using MarketAgent.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MarketAgent.UnitTests;
 
@@ -24,7 +25,13 @@ public sealed class MarketSignalServiceTests
         ]);
         var history = new StubHistoricalMarketDataService();
         var analyzer = new TechnicalMarketSignalAnalyzer(new EmptyTechnicalIndicatorService(), new RiskPositionOptions());
-        var service = new MarketSignalService(snapshots, analyzer, history);
+        var signalHistory = new RecordingSignalSnapshotHistoryRepository();
+        var service = new MarketSignalService(
+            snapshots,
+            analyzer,
+            history,
+            signalHistory,
+            NullLogger<MarketSignalService>.Instance);
 
         var result = await service.GenerateAsync();
         var signal = Assert.Single(result.Signals);
@@ -32,6 +39,85 @@ public sealed class MarketSignalServiceTests
         Assert.Contains("MSFT", history.RequestedSymbols);
         Assert.Contains("SPY", history.RequestedSymbols);
         Assert.Equal(3m, signal.RelativeStrengthVsSpy);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_PersistsGeneratedSignalSnapshots()
+    {
+        var snapshots = new StubMarketSnapshotRepository(
+        [
+            CreateSnapshot(
+                "MSFT",
+                price: 105m,
+                openPrice: 104m,
+                highPrice: 106m,
+                lowPrice: 101m,
+                previousClose: 100m)
+        ]);
+        var signalHistory = new RecordingSignalSnapshotHistoryRepository();
+        var service = new MarketSignalService(
+            snapshots,
+            new TechnicalMarketSignalAnalyzer(new EmptyTechnicalIndicatorService(), new RiskPositionOptions()),
+            new StubHistoricalMarketDataService(),
+            signalHistory,
+            NullLogger<MarketSignalService>.Instance);
+
+        var result = await service.GenerateAsync();
+
+        Assert.NotEqual(Guid.Empty, signalHistory.RunId);
+        Assert.Equal(result.GeneratedAtUtc, signalHistory.CreatedAtUtc);
+        Assert.Equal("Scanner", signalHistory.Source);
+        Assert.Null(signalHistory.MarketRegime);
+        Assert.Null(signalHistory.TriggeredAlertsJson);
+        Assert.Single(signalHistory.Signals);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ReturnsSignals_WhenPersistenceFails()
+    {
+        var snapshots = new StubMarketSnapshotRepository(
+        [
+            CreateSnapshot(
+                "MSFT",
+                price: 105m,
+                openPrice: 104m,
+                highPrice: 106m,
+                lowPrice: 101m,
+                previousClose: 100m)
+        ]);
+        var service = new MarketSignalService(
+            snapshots,
+            new TechnicalMarketSignalAnalyzer(new EmptyTechnicalIndicatorService(), new RiskPositionOptions()),
+            new StubHistoricalMarketDataService(),
+            new ThrowingSignalSnapshotHistoryRepository(new InvalidOperationException("SQL unavailable")),
+            NullLogger<MarketSignalService>.Instance);
+
+        var result = await service.GenerateAsync();
+
+        Assert.Single(result.Signals);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_DoesNotSwallowPersistenceCancellation()
+    {
+        var snapshots = new StubMarketSnapshotRepository(
+        [
+            CreateSnapshot(
+                "MSFT",
+                price: 105m,
+                openPrice: 104m,
+                highPrice: 106m,
+                lowPrice: 101m,
+                previousClose: 100m)
+        ]);
+        var service = new MarketSignalService(
+            snapshots,
+            new TechnicalMarketSignalAnalyzer(new EmptyTechnicalIndicatorService(), new RiskPositionOptions()),
+            new StubHistoricalMarketDataService(),
+            new ThrowingSignalSnapshotHistoryRepository(new OperationCanceledException()),
+            NullLogger<MarketSignalService>.Instance);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.GenerateAsync());
     }
 
     private static MarketSnapshot CreateSnapshot(
@@ -137,6 +223,62 @@ public sealed class MarketSignalServiceTests
         public TechnicalIndicators Calculate(IReadOnlyCollection<MarketCandle> candles)
         {
             return new TechnicalIndicators(null, null, null, null, null, null, null);
+        }
+    }
+
+    private sealed class RecordingSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRepository
+    {
+        public Guid RunId { get; private set; }
+
+        public DateTime CreatedAtUtc { get; private set; }
+
+        public IReadOnlyCollection<MarketSignal> Signals { get; private set; } = [];
+
+        public string? MarketRegime { get; private set; }
+
+        public string? TriggeredAlertsJson { get; private set; }
+
+        public string? Source { get; private set; }
+
+        public Task AppendAsync(
+            Guid runId,
+            DateTime createdAtUtc,
+            IReadOnlyCollection<MarketSignal> signals,
+            string? marketRegime,
+            string? triggeredAlertsJson,
+            string source,
+            CancellationToken cancellationToken = default)
+        {
+            RunId = runId;
+            CreatedAtUtc = createdAtUtc;
+            Signals = signals;
+            MarketRegime = marketRegime;
+            TriggeredAlertsJson = triggeredAlertsJson;
+            Source = source;
+
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRepository
+    {
+        private readonly Exception _exception;
+
+        public ThrowingSignalSnapshotHistoryRepository(Exception exception)
+        {
+            _exception = exception;
+        }
+
+        public Task AppendAsync(
+            Guid runId,
+            DateTime createdAtUtc,
+            IReadOnlyCollection<MarketSignal> signals,
+            string? marketRegime,
+            string? triggeredAlertsJson,
+            string source,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromException(_exception);
         }
     }
 }
