@@ -223,6 +223,36 @@ export interface SignalOutcomeSetupSummaryItem {
   averageReturn4h?: number | null;
 }
 
+export interface SignalOutcomeScoreBucketSummary {
+  generatedAtUtc: string;
+  confidenceItems: SignalOutcomeConfidenceSummaryItem[];
+  scoreBucketItems: SignalOutcomeScoreBucketSummaryItem[];
+}
+
+export interface SignalOutcomeConfidenceSummaryItem {
+  confidence: string;
+  count: number;
+  countWith15m: number;
+  averageReturn15m?: number | null;
+  countWith1h: number;
+  averageReturn1h?: number | null;
+  bestSymbol15m?: string | null;
+  worstSymbol15m?: string | null;
+}
+
+export interface SignalOutcomeScoreBucketSummaryItem {
+  bucket: string;
+  minScore?: number | null;
+  maxScore?: number | null;
+  count: number;
+  countWith15m: number;
+  averageReturn15m?: number | null;
+  countWith1h: number;
+  averageReturn1h?: number | null;
+  bestSymbol15m?: string | null;
+  worstSymbol15m?: string | null;
+}
+
 export interface DashboardState {
   briefing: BriefingResult;
   isMock: boolean;

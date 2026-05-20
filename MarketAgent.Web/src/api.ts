@@ -6,6 +6,7 @@ import type {
   HistoricalCandle,
   HistoricalMarketDataResult,
   IngestionResult,
+  SignalOutcomeScoreBucketSummary,
   SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
   SignalPerformancePreviewResult,
@@ -41,6 +42,10 @@ export async function loadSignalOutcomeSummary(): Promise<SignalOutcomeSummary> 
 
 export async function loadSignalOutcomeSetupSummary(): Promise<SignalOutcomeSetupSummary> {
   return getJson<SignalOutcomeSetupSummary>("/api/signals/outcomes/setup-summary");
+}
+
+export async function loadSignalOutcomeScoreBuckets(): Promise<SignalOutcomeScoreBucketSummary> {
+  return getJson<SignalOutcomeScoreBucketSummary>("/api/signals/outcomes/score-buckets");
 }
 
 export async function loadDashboard(): Promise<DashboardState> {

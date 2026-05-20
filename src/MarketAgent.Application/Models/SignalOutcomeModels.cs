@@ -120,3 +120,30 @@ public sealed record SignalOutcomeSetupSummaryItem(
     decimal? AverageReturn1h,
     int CountWith4h,
     decimal? AverageReturn4h);
+
+public sealed record SignalOutcomeScoreBucketSummary(
+    DateTime GeneratedAtUtc,
+    IReadOnlyCollection<SignalOutcomeConfidenceSummaryItem> ConfidenceItems,
+    IReadOnlyCollection<SignalOutcomeScoreBucketSummaryItem> ScoreBucketItems);
+
+public sealed record SignalOutcomeConfidenceSummaryItem(
+    string Confidence,
+    int Count,
+    int CountWith15m,
+    decimal? AverageReturn15m,
+    int CountWith1h,
+    decimal? AverageReturn1h,
+    string? BestSymbol15m,
+    string? WorstSymbol15m);
+
+public sealed record SignalOutcomeScoreBucketSummaryItem(
+    string Bucket,
+    decimal? MinScore,
+    decimal? MaxScore,
+    int Count,
+    int CountWith15m,
+    decimal? AverageReturn15m,
+    int CountWith1h,
+    decimal? AverageReturn1h,
+    string? BestSymbol15m,
+    string? WorstSymbol15m);

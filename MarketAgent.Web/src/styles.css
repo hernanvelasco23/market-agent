@@ -224,7 +224,10 @@ h1 {
 }
 
 .setup-performance .performance-item-header strong,
-.setup-performance .performance-item-header span {
+.setup-performance .performance-item-header span,
+.score-confidence-performance .performance-item-header strong,
+.score-confidence-performance .performance-item-header span,
+.score-confidence-performance .performance-metric b {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

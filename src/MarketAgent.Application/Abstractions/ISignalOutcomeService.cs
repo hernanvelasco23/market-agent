@@ -19,4 +19,8 @@ public interface ISignalOutcomeService
     Task<SignalOutcomeSetupSummary> GetSetupSummaryAsync(
         SignalOutcomeQuery query,
         CancellationToken cancellationToken = default);
+
+    Task<SignalOutcomeScoreBucketSummary> GetScoreBucketSummaryAsync(
+        SignalOutcomeQuery query,
+        CancellationToken cancellationToken = default);
 }

@@ -284,6 +284,54 @@ public sealed class SignalOutcomeServiceTests
         Assert.Equal(6m, summary.WorstSetupAverageReturn15m);
     }
 
+    [Fact]
+    public async Task GetScoreBucketSummaryAsync_GroupsByConfidenceAndScoreBuckets()
+    {
+        var repository = new RecordingSignalOutcomeRepository(
+            [],
+            [
+                CreateOutcomeItem("MSFT", "Momentum", 82m, " High ", priceAtSignal: 100m, priceAfter15Minutes: 110m, priceAfter1Hour: 112m, priceAfter4Hours: null),
+                CreateOutcomeItem("NVDA", "Momentum", 79m, "high", priceAtSignal: 200m, priceAfter15Minutes: 210m, priceAfter1Hour: null, priceAfter4Hours: null),
+                CreateOutcomeItem("AAPL", "Pullback", 65m, "Medium", priceAtSignal: 100m, priceAfter15Minutes: 97m, priceAfter1Hour: 99m, priceAfter4Hours: null),
+                CreateOutcomeItem("ABNB", "Pullback", 35m, " Low ", priceAtSignal: 100m, priceAfter15Minutes: 102m, priceAfter1Hour: 103m, priceAfter4Hours: null),
+                CreateOutcomeItem("PATH", "Risk", 15m, "", priceAtSignal: 100m, priceAfter15Minutes: null, priceAfter1Hour: null, priceAfter4Hours: null),
+                CreateOutcomeItem("TSLA", "Risk", 105m, "Medium", priceAtSignal: 100m, priceAfter15Minutes: 101m, priceAfter1Hour: null, priceAfter4Hours: null)
+            ]);
+        var service = new SignalOutcomeService(
+            repository,
+            new StubMarketSnapshotRepository([]),
+            NullLogger<SignalOutcomeService>.Instance);
+
+        var summary = await service.GetScoreBucketSummaryAsync(new SignalOutcomeQuery(null, null, null, null, null));
+        var high = Assert.Single(summary.ConfidenceItems, item => item.Confidence == "High");
+        var medium = Assert.Single(summary.ConfidenceItems, item => item.Confidence == "Medium");
+        var low = Assert.Single(summary.ConfidenceItems, item => item.Confidence == "Low");
+        var unknown = Assert.Single(summary.ConfidenceItems, item => item.Confidence == "Unknown");
+        var bucket61To80 = Assert.Single(summary.ScoreBucketItems, item => item.Bucket == "61-80");
+        var bucket81To100 = Assert.Single(summary.ScoreBucketItems, item => item.Bucket == "81-100");
+        var outOfRange = Assert.Single(summary.ScoreBucketItems, item => item.Bucket == "OutOfRange");
+
+        Assert.Equal(2, high.Count);
+        Assert.Equal(2, high.CountWith15m);
+        Assert.Equal(7.5m, high.AverageReturn15m);
+        Assert.Equal(1, high.CountWith1h);
+        Assert.Equal(12m, high.AverageReturn1h);
+        Assert.Equal("MSFT", high.BestSymbol15m);
+        Assert.Equal("NVDA", high.WorstSymbol15m);
+        Assert.Equal(2, medium.Count);
+        Assert.Equal(-1m, medium.AverageReturn15m);
+        Assert.Equal(1, low.Count);
+        Assert.Equal(2m, low.AverageReturn15m);
+        Assert.Equal(1, unknown.Count);
+        Assert.Equal(0, unknown.CountWith15m);
+        Assert.Equal(2, bucket61To80.Count);
+        Assert.Equal(1m, bucket61To80.AverageReturn15m);
+        Assert.Equal(1, bucket81To100.Count);
+        Assert.Equal(10m, bucket81To100.AverageReturn15m);
+        Assert.Equal(1, outOfRange.Count);
+        Assert.Equal(1m, outOfRange.AverageReturn15m);
+    }
+
     private static MarketSnapshot CreateSnapshot(
         string symbol,
         DateTime capturedAtUtc,
@@ -313,12 +361,25 @@ public sealed class SignalOutcomeServiceTests
         decimal? priceAfter1Hour,
         decimal? priceAfter4Hours)
     {
-        return CreateOutcomeItem(symbol, "Momentum", priceAtSignal, priceAfter15Minutes, priceAfter1Hour, priceAfter4Hours);
+        return CreateOutcomeItem(symbol, "Momentum", 65m, "Medium", priceAtSignal, priceAfter15Minutes, priceAfter1Hour, priceAfter4Hours);
     }
 
     private static SignalOutcomeItem CreateOutcomeItem(
         string symbol,
         string setup,
+        decimal priceAtSignal,
+        decimal? priceAfter15Minutes,
+        decimal? priceAfter1Hour,
+        decimal? priceAfter4Hours)
+    {
+        return CreateOutcomeItem(symbol, setup, 65m, "Medium", priceAtSignal, priceAfter15Minutes, priceAfter1Hour, priceAfter4Hours);
+    }
+
+    private static SignalOutcomeItem CreateOutcomeItem(
+        string symbol,
+        string setup,
+        decimal score,
+        string confidence,
         decimal priceAtSignal,
         decimal? priceAfter15Minutes,
         decimal? priceAfter1Hour,
@@ -331,8 +392,8 @@ public sealed class SignalOutcomeServiceTests
             symbol,
             setup,
             "Candidate",
-            65m,
-            "Medium",
+            score,
+            confidence,
             DateTime.UtcNow,
             SignalOutcomeStatuses.Pending,
             priceAtSignal,

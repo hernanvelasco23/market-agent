@@ -198,6 +198,24 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/api/signals/outcomes/score-buckets",
+    async (
+        ISignalOutcomeService signalOutcomeService,
+        string? symbol,
+        string? status,
+        bool? isSuccessful,
+        int? days,
+        int? limit,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await signalOutcomeService.GetScoreBucketSummaryAsync(
+            new SignalOutcomeQuery(symbol, status, isSuccessful, days, limit),
+            cancellationToken);
+
+        return Results.Ok(result);
+    });
+
+app.MapGet(
     "/api/historical/candles",
     async (IHistoricalMarketDataService historicalMarketDataService, int? days, CancellationToken cancellationToken) =>
     {
