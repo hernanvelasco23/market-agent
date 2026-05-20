@@ -6,6 +6,7 @@ import type {
   HistoricalCandle,
   HistoricalMarketDataResult,
   IngestionResult,
+  SignalOutcomeSummary,
   SignalPerformancePreviewResult,
   SignalRunResult,
   SparklinePricesBySymbol
@@ -31,6 +32,10 @@ export async function loadHistoricalCandles(days = 60): Promise<HistoricalMarket
 
 export async function loadSignalPerformancePreview(days = 180): Promise<SignalPerformancePreviewResult> {
   return getJson<SignalPerformancePreviewResult>(`/api/signals/performance-preview?days=${days}`);
+}
+
+export async function loadSignalOutcomeSummary(): Promise<SignalOutcomeSummary> {
+  return getJson<SignalOutcomeSummary>("/api/signals/outcomes/summary");
 }
 
 export async function loadDashboard(): Promise<DashboardState> {
