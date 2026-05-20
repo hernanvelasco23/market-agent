@@ -158,6 +158,195 @@ h1 {
   margin-bottom: 14px;
 }
 
+.filter-bar {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.watchlist-panel {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.watchlist-header,
+.watchlist-controls,
+.watchlist-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.watchlist-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.watchlist-controls {
+  margin-bottom: 10px;
+}
+
+.watchlist-select select {
+  min-width: 190px;
+}
+
+.watchlist-summary {
+  display: inline-grid;
+  gap: 3px;
+  min-height: 36px;
+  min-width: min(100%, 320px);
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.watchlist-summary span {
+  color: #d8e3f3;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.watchlist-summary small {
+  color: #9fb0c9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-editor input {
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #d8e3f3;
+  background: #101722;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.watchlist-editor input:first-child {
+  width: min(220px, 100%);
+}
+
+.watchlist-editor input:nth-child(2) {
+  flex: 1;
+  min-width: min(340px, 100%);
+}
+
+.filter-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.filter-summary span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 999px;
+  padding: 0 8px;
+  color: #9fb0c9;
+  background: rgba(148, 163, 184, 0.08);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.filter-select,
+.filter-chip-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+}
+
+.filter-select span,
+.filter-chip-group > span {
+  color: #7f91ab;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.filter-select select {
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  padding: 0 9px;
+  color: #d8e3f3;
+  background: #101722;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.filter-chip,
+.filter-reset {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  padding: 0 9px;
+  color: #b9c8dc;
+  background: rgba(16, 23, 34, 0.9);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.filter-chip:hover,
+.filter-reset:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.66);
+  color: #e5eefc;
+}
+
+.filter-chip:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.filter-chip.active {
+  color: #052e16;
+  border-color: rgba(134, 239, 172, 0.7);
+  background: #86efac;
+}
+
+.filter-chip.danger {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.28);
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.filter-reset:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.filter-reset.inline {
+  margin-top: 4px;
+}
+
 .alert-empty {
   margin-top: 12px;
 }
@@ -411,6 +600,27 @@ h1 {
 
 .table-wrap {
   overflow-x: auto;
+}
+
+.table-empty {
+  padding: 24px 16px;
+  color: #7f91ab;
+  text-align: center;
+}
+
+.table-empty-state {
+  display: inline-grid;
+  justify-items: center;
+  gap: 8px;
+  white-space: normal;
+}
+
+.table-empty-state strong {
+  color: #d8e3f3;
+}
+
+.table-empty-state span {
+  color: #9fb0c9;
 }
 
 table {
@@ -780,6 +990,16 @@ tbody tr.selected {
   .detail-card {
     position: static;
   }
+
+  .filter-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .watchlist-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
@@ -803,5 +1023,23 @@ tbody tr.selected {
 
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .filter-select,
+  .filter-select select,
+  .filter-chip-group {
+    width: 100%;
+  }
+
+  .filter-chip-group {
+    flex-wrap: wrap;
+  }
+
+  .watchlist-editor input,
+  .watchlist-editor button,
+  .watchlist-select,
+  .watchlist-select select,
+  .watchlist-summary {
+    width: 100%;
   }
 }

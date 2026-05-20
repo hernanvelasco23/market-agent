@@ -188,3 +188,26 @@ export interface DashboardAlert {
   action?: string;
   metrics: DashboardAlertMetric[];
 }
+
+export type SignalSortKey = "scoreDesc" | "rsDesc" | "rvolDesc" | "extDesc" | "symbolAsc";
+
+export interface SignalFilters {
+  setupType: string;
+  minScore: number | null;
+  minRs: number | null;
+  minRvol: number | null;
+  riskOnly: boolean;
+  opportunityOnly: boolean;
+  overextendedOnly: boolean;
+  openingRedReversalOnly: boolean;
+  sortBy: SignalSortKey;
+}
+
+export type WatchlistKind = "all" | "predefined" | "custom";
+
+export interface Watchlist {
+  id: string;
+  name: string;
+  symbols: string[];
+  kind: WatchlistKind;
+}
