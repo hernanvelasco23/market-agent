@@ -5,6 +5,7 @@ import {
   buildSparklinePricesBySymbol,
   loadDashboard,
   loadHistoricalCandles,
+  loadSignalOutcomeScoreBuckets,
   loadSignalOutcomeSetupSummary,
   loadSignalOutcomeSummary,
   loadSignalPerformancePreview,
@@ -15,6 +16,7 @@ import {
 } from "./api";
 import { deriveDashboardAlerts } from "./alerts";
 import { AlertCenter } from "./components/AlertCenter";
+import { ScoreConfidencePerformancePanel } from "./components/ScoreConfidencePerformancePanel";
 import { SignalFilterBar } from "./components/SignalFilterBar";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
 import { SignalOutcomeSummaryPanel } from "./components/SignalOutcomeSummaryPanel";
@@ -28,6 +30,7 @@ import type {
   DashboardSignal,
   IngestionResult,
   SignalFilters,
+  SignalOutcomeScoreBucketSummary,
   SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
   SignalPerformancePreviewResult,
@@ -57,6 +60,9 @@ export function App() {
   const [setupSummary, setSetupSummary] = useState<SignalOutcomeSetupSummary | null>(null);
   const [setupSummaryLoading, setSetupSummaryLoading] = useState(false);
   const [setupSummaryUnavailable, setSetupSummaryUnavailable] = useState(false);
+  const [scoreBucketSummary, setScoreBucketSummary] = useState<SignalOutcomeScoreBucketSummary | null>(null);
+  const [scoreBucketSummaryLoading, setScoreBucketSummaryLoading] = useState(false);
+  const [scoreBucketSummaryUnavailable, setScoreBucketSummaryUnavailable] = useState(false);
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
   const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
   const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
@@ -142,7 +148,13 @@ export function App() {
       setBriefing(state.briefing);
       setUsingMock(state.isMock);
       setSelectedSymbol(state.briefing.allSignals[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary(), refreshSetupSummary()]);
+      await Promise.all([
+        refreshSparklines(),
+        refreshPerformancePreview(),
+        refreshOutcomeSummary(),
+        refreshSetupSummary(),
+        refreshScoreBucketSummary()
+      ]);
       if (state.isMock) {
         setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
       }
@@ -153,7 +165,7 @@ export function App() {
     await withAction("Run ingestion", async () => {
       const result = await runIngestion();
       setIngestion(result);
-      await Promise.all([refreshOutcomeSummary(), refreshSetupSummary()]);
+      await Promise.all([refreshOutcomeSummary(), refreshSetupSummary(), refreshScoreBucketSummary()]);
     });
   }
 
@@ -176,7 +188,13 @@ export function App() {
         watchItems: current?.watchItems ?? []
       }));
       setSelectedSymbol(all[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary(), refreshSetupSummary()]);
+      await Promise.all([
+        refreshSparklines(),
+        refreshPerformancePreview(),
+        refreshOutcomeSummary(),
+        refreshSetupSummary(),
+        refreshScoreBucketSummary()
+      ]);
     });
   }
 
@@ -186,7 +204,13 @@ export function App() {
       setUsingMock(false);
       setBriefing(result);
       setSelectedSymbol(result.allSignals[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary(), refreshSetupSummary()]);
+      await Promise.all([
+        refreshSparklines(),
+        refreshPerformancePreview(),
+        refreshOutcomeSummary(),
+        refreshSetupSummary(),
+        refreshScoreBucketSummary()
+      ]);
     });
   }
 
@@ -237,6 +261,21 @@ export function App() {
       setSetupSummaryUnavailable(true);
     } finally {
       setSetupSummaryLoading(false);
+    }
+  }
+
+  async function refreshScoreBucketSummary() {
+    setScoreBucketSummaryLoading(true);
+
+    try {
+      const summary = await loadSignalOutcomeScoreBuckets();
+      setScoreBucketSummary(summary);
+      setScoreBucketSummaryUnavailable(false);
+    } catch {
+      setScoreBucketSummary(null);
+      setScoreBucketSummaryUnavailable(true);
+    } finally {
+      setScoreBucketSummaryLoading(false);
     }
   }
 
@@ -305,6 +344,12 @@ export function App() {
       />
 
       <SetupPerformancePanel loading={setupSummaryLoading} summary={setupSummary} unavailable={setupSummaryUnavailable} />
+
+      <ScoreConfidencePerformancePanel
+        loading={scoreBucketSummaryLoading}
+        summary={scoreBucketSummary}
+        unavailable={scoreBucketSummaryUnavailable}
+      />
 
       <SignalPerformancePreviewPanel preview={performancePreview} unavailable={performancePreviewUnavailable} />
 

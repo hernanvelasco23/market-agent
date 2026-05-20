@@ -11,6 +11,15 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
     private const int MaxLimit = 1000;
     private const int MinimumSetupRankingSampleSize = 3;
 
+    private static readonly ScoreBucketDefinition[] ScoreBuckets =
+    [
+        new("0-20", 0m, 20m, decimal.MinValue),
+        new("21-40", 21m, 40m, 20m),
+        new("41-60", 41m, 60m, 40m),
+        new("61-80", 61m, 80m, 60m),
+        new("81-100", 81m, 100m, 80m)
+    ];
+
     private static readonly TimeSpan FifteenMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan OneHour = TimeSpan.FromHours(1);
     private static readonly TimeSpan FourHours = TimeSpan.FromHours(4);
@@ -203,6 +212,58 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
             worstSetup?.Setup,
             worstSetup?.AverageReturn15m,
             items);
+    }
+
+    public async Task<SignalOutcomeScoreBucketSummary> GetScoreBucketSummaryAsync(
+        SignalOutcomeQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var outcomes = await GetOutcomesAsync(query, cancellationToken);
+        var confidenceItems = outcomes
+            .GroupBy(outcome => NormalizeConfidence(outcome.Confidence), StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var aggregate = AggregatePartialPerformance(group.ToArray());
+
+                return new SignalOutcomeConfidenceSummaryItem(
+                    group.Key,
+                    aggregate.Count,
+                    aggregate.CountWith15m,
+                    aggregate.AverageReturn15m,
+                    aggregate.CountWith1h,
+                    aggregate.AverageReturn1h,
+                    aggregate.BestSymbol15m,
+                    aggregate.WorstSymbol15m);
+            })
+            .OrderBy(item => ConfidenceSortOrder(item.Confidence))
+            .ThenBy(item => item.Confidence, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var scoreBucketItems = outcomes
+            .GroupBy(outcome => GetScoreBucket(outcome.Score))
+            .Select(group =>
+            {
+                var aggregate = AggregatePartialPerformance(group.ToArray());
+
+                return new SignalOutcomeScoreBucketSummaryItem(
+                    group.Key.Label,
+                    group.Key.MinScore,
+                    group.Key.MaxScore,
+                    aggregate.Count,
+                    aggregate.CountWith15m,
+                    aggregate.AverageReturn15m,
+                    aggregate.CountWith1h,
+                    aggregate.AverageReturn1h,
+                    aggregate.BestSymbol15m,
+                    aggregate.WorstSymbol15m);
+            })
+            .OrderBy(item => item.MinScore ?? decimal.MaxValue)
+            .ThenBy(item => item.Bucket, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return new SignalOutcomeScoreBucketSummary(
+            EnsureUtc(DateTime.UtcNow),
+            confidenceItems,
+            scoreBucketItems);
     }
 
     private async Task<SignalOutcomeRecord> EvaluateCandidateAsync(
@@ -471,6 +532,30 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
             .ToArray();
     }
 
+    private static PartialPerformanceAggregate AggregatePartialPerformance(
+        IReadOnlyCollection<SignalOutcomeItem> outcomes)
+    {
+        var returns15m = GetCheckpointReturns(outcomes, outcome => outcome.PriceAfter15Minutes);
+        var returns1h = GetCheckpointReturns(outcomes, outcome => outcome.PriceAfter1Hour);
+        var best15m = returns15m
+            .OrderByDescending(item => item.ReturnPercent)
+            .ThenBy(item => item.Symbol)
+            .FirstOrDefault();
+        var worst15m = returns15m
+            .OrderBy(item => item.ReturnPercent)
+            .ThenBy(item => item.Symbol)
+            .FirstOrDefault();
+
+        return new PartialPerformanceAggregate(
+            outcomes.Count,
+            returns15m.Length,
+            Average(returns15m.Select(item => (decimal?)item.ReturnPercent)),
+            returns1h.Length,
+            Average(returns1h.Select(item => (decimal?)item.ReturnPercent)),
+            best15m?.Symbol,
+            worst15m?.Symbol);
+    }
+
     private static decimal GetHighPrice(MarketSnapshot snapshot)
     {
         return snapshot.HighPrice ?? snapshot.Price;
@@ -543,6 +628,52 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
             : setup.Trim();
     }
 
+    private static string NormalizeConfidence(string? confidence)
+    {
+        if (string.IsNullOrWhiteSpace(confidence))
+        {
+            return "Unknown";
+        }
+
+        return confidence.Trim() switch
+        {
+            var value when value.Equals("High", StringComparison.OrdinalIgnoreCase) => "High",
+            var value when value.Equals("Medium", StringComparison.OrdinalIgnoreCase) => "Medium",
+            var value when value.Equals("Low", StringComparison.OrdinalIgnoreCase) => "Low",
+            var value => value
+        };
+    }
+
+    private static int ConfidenceSortOrder(string confidence)
+    {
+        return confidence switch
+        {
+            "High" => 0,
+            "Medium" => 1,
+            "Low" => 2,
+            "Unknown" => 3,
+            _ => 4
+        };
+    }
+
+    private static ScoreBucketDefinition GetScoreBucket(decimal score)
+    {
+        foreach (var bucket in ScoreBuckets)
+        {
+            if (score > bucket.MinExclusive && score <= bucket.MaxScore)
+            {
+                return bucket;
+            }
+
+            if (bucket.MinExclusive == 0m && score >= 0m && score <= bucket.MaxScore)
+            {
+                return bucket;
+            }
+        }
+
+        return new ScoreBucketDefinition("OutOfRange", null, null, decimal.MaxValue);
+    }
+
     private static decimal? Average(IEnumerable<decimal?> values)
     {
         var concreteValues = values
@@ -570,4 +701,19 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
     private sealed record CheckpointPrice(MarketSnapshot Snapshot);
 
     private sealed record CheckpointReturn(string Symbol, decimal ReturnPercent);
+
+    private sealed record PartialPerformanceAggregate(
+        int Count,
+        int CountWith15m,
+        decimal? AverageReturn15m,
+        int CountWith1h,
+        decimal? AverageReturn1h,
+        string? BestSymbol15m,
+        string? WorstSymbol15m);
+
+    private sealed record ScoreBucketDefinition(
+        string Label,
+        decimal? MinScore,
+        decimal? MaxScore,
+        decimal MinExclusive);
 }
