@@ -101,3 +101,22 @@ public sealed record SignalOutcomeSummary(
     decimal? Best1hReturnPercent,
     string? Worst1hSymbol,
     decimal? Worst1hReturnPercent);
+
+public sealed record SignalOutcomeSetupSummary(
+    DateTime GeneratedAtUtc,
+    int TotalSetupCount,
+    string? BestSetup,
+    decimal? BestSetupAverageReturn15m,
+    string? WorstSetup,
+    decimal? WorstSetupAverageReturn15m,
+    IReadOnlyCollection<SignalOutcomeSetupSummaryItem> Items);
+
+public sealed record SignalOutcomeSetupSummaryItem(
+    string Setup,
+    int Count,
+    int CountWith15m,
+    decimal? AverageReturn15m,
+    int CountWith1h,
+    decimal? AverageReturn1h,
+    int CountWith4h,
+    decimal? AverageReturn4h);

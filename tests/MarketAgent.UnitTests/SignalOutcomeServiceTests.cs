@@ -246,6 +246,44 @@ public sealed class SignalOutcomeServiceTests
         Assert.Equal(2m, summary.Worst1hReturnPercent);
     }
 
+    [Fact]
+    public async Task GetSetupSummaryAsync_GroupsOutcomesByNormalizedSetup()
+    {
+        var repository = new RecordingSignalOutcomeRepository(
+            [],
+            [
+                CreateOutcomeItem("MSFT", " MomentumContinuation ", priceAtSignal: 100m, priceAfter15Minutes: 103m, priceAfter1Hour: 104m, priceAfter4Hours: null),
+                CreateOutcomeItem("NVDA", "momentumcontinuation", priceAtSignal: 200m, priceAfter15Minutes: 210m, priceAfter1Hour: 212m, priceAfter4Hours: null),
+                CreateOutcomeItem("RKLB", "MomentumContinuation", priceAtSignal: 50m, priceAfter15Minutes: 55m, priceAfter1Hour: null, priceAfter4Hours: null),
+                CreateOutcomeItem("AAPL", "Pullback", priceAtSignal: 100m, priceAfter15Minutes: 98m, priceAfter1Hour: 99m, priceAfter4Hours: null),
+                CreateOutcomeItem("ABNB", "Pullback", priceAtSignal: 100m, priceAfter15Minutes: 99m, priceAfter1Hour: null, priceAfter4Hours: null),
+                CreateOutcomeItem("PATH", "", priceAtSignal: 100m, priceAfter15Minutes: 101m, priceAfter1Hour: null, priceAfter4Hours: null)
+            ]);
+        var service = new SignalOutcomeService(
+            repository,
+            new StubMarketSnapshotRepository([]),
+            NullLogger<SignalOutcomeService>.Instance);
+
+        var summary = await service.GetSetupSummaryAsync(new SignalOutcomeQuery(null, null, null, null, null));
+        var momentum = Assert.Single(summary.Items, item => item.Setup == "MomentumContinuation");
+        var pullback = Assert.Single(summary.Items, item => item.Setup == "Pullback");
+        var unknown = Assert.Single(summary.Items, item => item.Setup == "Unknown");
+
+        Assert.Equal(3, summary.TotalSetupCount);
+        Assert.Equal(3, momentum.Count);
+        Assert.Equal(3, momentum.CountWith15m);
+        Assert.Equal(6m, momentum.AverageReturn15m);
+        Assert.Equal(2, momentum.CountWith1h);
+        Assert.Equal(5m, momentum.AverageReturn1h);
+        Assert.Equal(2, pullback.CountWith15m);
+        Assert.Equal(-1.5m, pullback.AverageReturn15m);
+        Assert.Equal(1, unknown.CountWith15m);
+        Assert.Equal("MomentumContinuation", summary.BestSetup);
+        Assert.Equal(6m, summary.BestSetupAverageReturn15m);
+        Assert.Equal("MomentumContinuation", summary.WorstSetup);
+        Assert.Equal(6m, summary.WorstSetupAverageReturn15m);
+    }
+
     private static MarketSnapshot CreateSnapshot(
         string symbol,
         DateTime capturedAtUtc,
@@ -275,12 +313,23 @@ public sealed class SignalOutcomeServiceTests
         decimal? priceAfter1Hour,
         decimal? priceAfter4Hours)
     {
+        return CreateOutcomeItem(symbol, "Momentum", priceAtSignal, priceAfter15Minutes, priceAfter1Hour, priceAfter4Hours);
+    }
+
+    private static SignalOutcomeItem CreateOutcomeItem(
+        string symbol,
+        string setup,
+        decimal priceAtSignal,
+        decimal? priceAfter15Minutes,
+        decimal? priceAfter1Hour,
+        decimal? priceAfter4Hours)
+    {
         return new SignalOutcomeItem(
             Guid.NewGuid(),
             DateTime.UtcNow.AddHours(-2),
             Guid.NewGuid(),
             symbol,
-            "Momentum",
+            setup,
             "Candidate",
             65m,
             "Medium",

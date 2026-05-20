@@ -6,6 +6,7 @@ import type {
   HistoricalCandle,
   HistoricalMarketDataResult,
   IngestionResult,
+  SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
   SignalPerformancePreviewResult,
   SignalRunResult,
@@ -36,6 +37,10 @@ export async function loadSignalPerformancePreview(days = 180): Promise<SignalPe
 
 export async function loadSignalOutcomeSummary(): Promise<SignalOutcomeSummary> {
   return getJson<SignalOutcomeSummary>("/api/signals/outcomes/summary");
+}
+
+export async function loadSignalOutcomeSetupSummary(): Promise<SignalOutcomeSetupSummary> {
+  return getJson<SignalOutcomeSetupSummary>("/api/signals/outcomes/setup-summary");
 }
 
 export async function loadDashboard(): Promise<DashboardState> {

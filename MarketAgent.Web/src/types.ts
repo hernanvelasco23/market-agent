@@ -202,6 +202,27 @@ export interface SignalOutcomeSummary {
   worst15mReturnPercent?: number | null;
 }
 
+export interface SignalOutcomeSetupSummary {
+  generatedAtUtc: string;
+  totalSetupCount: number;
+  bestSetup?: string | null;
+  bestSetupAverageReturn15m?: number | null;
+  worstSetup?: string | null;
+  worstSetupAverageReturn15m?: number | null;
+  items: SignalOutcomeSetupSummaryItem[];
+}
+
+export interface SignalOutcomeSetupSummaryItem {
+  setup: string;
+  count: number;
+  countWith15m: number;
+  averageReturn15m?: number | null;
+  countWith1h: number;
+  averageReturn1h?: number | null;
+  countWith4h: number;
+  averageReturn4h?: number | null;
+}
+
 export interface DashboardState {
   briefing: BriefingResult;
   isMock: boolean;

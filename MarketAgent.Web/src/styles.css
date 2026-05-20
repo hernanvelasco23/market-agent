@@ -223,6 +223,14 @@ h1 {
   font-size: 0.92rem;
 }
 
+.setup-performance .performance-item-header strong,
+.setup-performance .performance-item-header span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .performance-item-header span {
   color: #9fb0c9;
   font-size: 0.76rem;
