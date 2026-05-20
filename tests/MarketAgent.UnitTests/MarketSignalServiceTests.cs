@@ -157,6 +157,21 @@ public sealed class MarketSignalServiceTests
             return Task.FromResult(_snapshots);
         }
 
+        public Task<IReadOnlyCollection<MarketSnapshot>> GetFutureMarketSnapshotsAsync(
+            string symbol,
+            DateTime fromUtc,
+            DateTime toUtc,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyCollection<MarketSnapshot>>(
+                _snapshots
+                    .Where(snapshot => snapshot.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase) &&
+                        snapshot.CapturedAtUtc >= fromUtc &&
+                        snapshot.CapturedAtUtc <= toUtc)
+                    .OrderBy(snapshot => snapshot.CapturedAtUtc)
+                    .ToArray());
+        }
+
         public Task SaveAsync(MarketSnapshot snapshot, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();

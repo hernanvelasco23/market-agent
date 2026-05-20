@@ -4,6 +4,7 @@ using MarketAgent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketAgent.Infrastructure.Migrations
 {
     [DbContext(typeof(MarketAgentDbContext))]
-    partial class MarketAgentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260520151150_AddSignalOutcomes")]
+    partial class AddSignalOutcomes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,75 +24,6 @@ namespace MarketAgent.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("MarketAgent.Infrastructure.Persistence.PersistedMarketSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("AssetType")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CapturedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
-
-                    b.Property<decimal?>("HighPrice")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<decimal?>("LowPrice")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<decimal?>("OpenPrice")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<decimal?>("PreviousClose")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("Symbol")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.Property<decimal?>("Volume")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CapturedAtUtc")
-                        .HasDatabaseName("IX_MarketSnapshots_CapturedAtUtc");
-
-                    b.HasIndex("Symbol")
-                        .HasDatabaseName("IX_MarketSnapshots_Symbol");
-
-                    b.HasIndex("Symbol", "CapturedAtUtc")
-                        .HasDatabaseName("IX_MarketSnapshots_Symbol_CapturedAtUtc");
-
-                    b.HasIndex("Symbol", "Source", "CapturedAtUtc")
-                        .IsUnique()
-                        .HasDatabaseName("IX_MarketSnapshots_Symbol_Source_CapturedAtUtc");
-
-                    b.ToTable("MarketSnapshots", (string)null);
-                });
 
             modelBuilder.Entity("MarketAgent.Infrastructure.Persistence.PersistedSignalOutcome", b =>
                 {

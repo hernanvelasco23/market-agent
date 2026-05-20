@@ -11,9 +11,39 @@ public sealed class MarketAgentDbContext : DbContext
 
     public DbSet<PersistedSignalSnapshot> SignalSnapshots => Set<PersistedSignalSnapshot>();
 
+    public DbSet<PersistedSignalOutcome> SignalOutcomes => Set<PersistedSignalOutcome>();
+
+    public DbSet<PersistedMarketSnapshot> MarketSnapshots => Set<PersistedMarketSnapshot>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
+
+        var marketSnapshot = modelBuilder.Entity<PersistedMarketSnapshot>();
+
+        marketSnapshot.ToTable("MarketSnapshots");
+        marketSnapshot.HasKey(snapshot => snapshot.Id);
+        marketSnapshot.Property(snapshot => snapshot.Symbol).HasMaxLength(32).IsRequired();
+        marketSnapshot.Property(snapshot => snapshot.AssetType).IsRequired();
+        marketSnapshot.Property(snapshot => snapshot.Price).HasPrecision(18, 6).IsRequired();
+        marketSnapshot.Property(snapshot => snapshot.Currency).HasMaxLength(8).IsRequired();
+        marketSnapshot.Property(snapshot => snapshot.CapturedAtUtc).IsRequired();
+        marketSnapshot.Property(snapshot => snapshot.Source).HasMaxLength(128).IsRequired();
+        marketSnapshot.Property(snapshot => snapshot.Volume).HasPrecision(18, 2);
+        marketSnapshot.Property(snapshot => snapshot.OpenPrice).HasPrecision(18, 6);
+        marketSnapshot.Property(snapshot => snapshot.HighPrice).HasPrecision(18, 6);
+        marketSnapshot.Property(snapshot => snapshot.LowPrice).HasPrecision(18, 6);
+        marketSnapshot.Property(snapshot => snapshot.PreviousClose).HasPrecision(18, 6);
+
+        marketSnapshot.HasIndex(snapshot => snapshot.Symbol)
+            .HasDatabaseName("IX_MarketSnapshots_Symbol");
+        marketSnapshot.HasIndex(snapshot => snapshot.CapturedAtUtc)
+            .HasDatabaseName("IX_MarketSnapshots_CapturedAtUtc");
+        marketSnapshot.HasIndex(snapshot => new { snapshot.Symbol, snapshot.CapturedAtUtc })
+            .HasDatabaseName("IX_MarketSnapshots_Symbol_CapturedAtUtc");
+        marketSnapshot.HasIndex(snapshot => new { snapshot.Symbol, snapshot.Source, snapshot.CapturedAtUtc })
+            .IsUnique()
+            .HasDatabaseName("IX_MarketSnapshots_Symbol_Source_CapturedAtUtc");
 
         var signalSnapshot = modelBuilder.Entity<PersistedSignalSnapshot>();
 
@@ -55,5 +85,37 @@ public sealed class MarketAgentDbContext : DbContext
             .HasDatabaseName("IX_SignalSnapshots_RunId");
         signalSnapshot.HasIndex(snapshot => new { snapshot.Symbol, snapshot.CreatedAtUtc })
             .HasDatabaseName("IX_SignalSnapshots_Symbol_CreatedAtUtc");
+
+        var signalOutcome = modelBuilder.Entity<PersistedSignalOutcome>();
+
+        signalOutcome.ToTable("SignalOutcomes");
+        signalOutcome.HasKey(outcome => outcome.Id);
+        signalOutcome.Property(outcome => outcome.SignalSnapshotId).IsRequired();
+        signalOutcome.Property(outcome => outcome.EvaluatedAtUtc).IsRequired();
+        signalOutcome.Property(outcome => outcome.EvaluationStatus).HasMaxLength(32).IsRequired();
+        signalOutcome.Property(outcome => outcome.PriceAtSignal).HasPrecision(18, 6);
+        signalOutcome.Property(outcome => outcome.PriceAfter15Minutes).HasPrecision(18, 6);
+        signalOutcome.Property(outcome => outcome.PriceAfter1Hour).HasPrecision(18, 6);
+        signalOutcome.Property(outcome => outcome.PriceAfter4Hours).HasPrecision(18, 6);
+        signalOutcome.Property(outcome => outcome.PriceAfter1Day).HasPrecision(18, 6);
+        signalOutcome.Property(outcome => outcome.MaxRunupPercent).HasPrecision(9, 2);
+        signalOutcome.Property(outcome => outcome.MaxDrawdownPercent).HasPrecision(9, 2);
+        signalOutcome.Property(outcome => outcome.OutcomePercent).HasPrecision(9, 2);
+        signalOutcome.Property(outcome => outcome.FailureReason).HasMaxLength(256);
+
+        signalOutcome.HasOne(outcome => outcome.SignalSnapshot)
+            .WithOne(snapshot => snapshot.Outcome)
+            .HasForeignKey<PersistedSignalOutcome>(outcome => outcome.SignalSnapshotId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        signalOutcome.HasIndex(outcome => outcome.SignalSnapshotId)
+            .IsUnique()
+            .HasDatabaseName("IX_SignalOutcomes_SignalSnapshotId");
+        signalOutcome.HasIndex(outcome => outcome.EvaluatedAtUtc)
+            .HasDatabaseName("IX_SignalOutcomes_EvaluatedAtUtc");
+        signalOutcome.HasIndex(outcome => outcome.EvaluationStatus)
+            .HasDatabaseName("IX_SignalOutcomes_EvaluationStatus");
+        signalOutcome.HasIndex(outcome => outcome.IsSuccessful)
+            .HasDatabaseName("IX_SignalOutcomes_IsSuccessful");
     }
 }

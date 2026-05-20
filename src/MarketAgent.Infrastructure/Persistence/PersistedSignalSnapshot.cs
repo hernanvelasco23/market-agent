@@ -59,4 +59,6 @@ public sealed class PersistedSignalSnapshot
     public decimal? OpenGapPercent { get; set; }
 
     public decimal? RecoveryFromLowPercent { get; set; }
+
+    public PersistedSignalOutcome? Outcome { get; set; }
 }
