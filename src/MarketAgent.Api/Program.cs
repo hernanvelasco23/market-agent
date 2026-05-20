@@ -30,18 +30,21 @@ builder.Services.AddTransient<IHistoricalMarketDataProvider>(serviceProvider =>
     serviceProvider.GetRequiredService<HistoricalMarketDataProvider>());
 builder.Services.AddHttpClient(nameof(SemanticKernelMarketBriefingGenerator));
 builder.Services.AddSingleton<IMarketDataProviderResolver, MarketDataProviderResolver>();
-builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
 builder.Services.AddSingleton<IHistoricalCandleRepository, InMemoryHistoricalCandleRepository>();
 var sqlServerConnectionString = builder.Configuration.GetConnectionString(SqlServerConnectionStringName);
 if (string.IsNullOrWhiteSpace(sqlServerConnectionString))
 {
+    builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
     builder.Services.AddScoped<ISignalSnapshotHistoryRepository, NoOpSignalSnapshotHistoryRepository>();
+    builder.Services.AddScoped<ISignalOutcomeRepository, NoOpSignalOutcomeRepository>();
 }
 else
 {
     builder.Services.AddDbContext<MarketAgentDbContext>(options =>
         options.UseSqlServer(sqlServerConnectionString));
+    builder.Services.AddScoped<IMarketSnapshotRepository, EfMarketSnapshotRepository>();
     builder.Services.AddScoped<ISignalSnapshotHistoryRepository, EfSignalSnapshotHistoryRepository>();
+    builder.Services.AddScoped<ISignalOutcomeRepository, EfSignalOutcomeRepository>();
 }
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
 builder.Services.AddScoped<IHistoricalMarketDataService, HistoricalMarketDataService>();
@@ -50,6 +53,7 @@ builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefin
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>();
 builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
+builder.Services.AddScoped<ISignalOutcomeService, SignalOutcomeService>();
 builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePreviewService>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
@@ -126,6 +130,50 @@ app.MapGet(
     {
         var result = await signalPerformancePreviewService.GenerateAsync(
             days ?? 180,
+            cancellationToken);
+
+        return Results.Ok(result);
+    });
+
+app.MapPost(
+    "/api/signals/outcomes/evaluate",
+    async (ISignalOutcomeService signalOutcomeService, int? limit, CancellationToken cancellationToken) =>
+    {
+        var result = await signalOutcomeService.EvaluateAsync(limit, cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/signals/outcomes",
+    async (
+        ISignalOutcomeService signalOutcomeService,
+        string? symbol,
+        string? status,
+        bool? isSuccessful,
+        int? days,
+        int? limit,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await signalOutcomeService.GetOutcomesAsync(
+            new SignalOutcomeQuery(symbol, status, isSuccessful, days, limit),
+            cancellationToken);
+
+        return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/signals/outcomes/summary",
+    async (
+        ISignalOutcomeService signalOutcomeService,
+        string? symbol,
+        string? status,
+        bool? isSuccessful,
+        int? days,
+        int? limit,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await signalOutcomeService.GetSummaryAsync(
+            new SignalOutcomeQuery(symbol, status, isSuccessful, days, limit),
             cancellationToken);
 
         return Results.Ok(result);
