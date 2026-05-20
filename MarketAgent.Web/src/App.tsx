@@ -5,6 +5,7 @@ import {
   buildSparklinePricesBySymbol,
   loadDashboard,
   loadHistoricalCandles,
+  loadSignalOutcomeSetupSummary,
   loadSignalOutcomeSummary,
   loadSignalPerformancePreview,
   runBriefing,
@@ -18,6 +19,7 @@ import { SignalFilterBar } from "./components/SignalFilterBar";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
 import { SignalOutcomeSummaryPanel } from "./components/SignalOutcomeSummaryPanel";
 import { SignalPerformancePreviewPanel } from "./components/SignalPerformancePreviewPanel";
+import { SetupPerformancePanel } from "./components/SetupPerformancePanel";
 import { Sparkline } from "./components/Sparkline";
 import { WatchlistSelector } from "./components/WatchlistSelector";
 import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasActiveSignalFilters } from "./signalFilters";
@@ -26,6 +28,7 @@ import type {
   DashboardSignal,
   IngestionResult,
   SignalFilters,
+  SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
   SignalPerformancePreviewResult,
   SparklinePricesBySymbol,
@@ -51,6 +54,9 @@ export function App() {
   const [outcomeSummary, setOutcomeSummary] = useState<SignalOutcomeSummary | null>(null);
   const [outcomeSummaryLoading, setOutcomeSummaryLoading] = useState(false);
   const [outcomeSummaryUnavailable, setOutcomeSummaryUnavailable] = useState(false);
+  const [setupSummary, setSetupSummary] = useState<SignalOutcomeSetupSummary | null>(null);
+  const [setupSummaryLoading, setSetupSummaryLoading] = useState(false);
+  const [setupSummaryUnavailable, setSetupSummaryUnavailable] = useState(false);
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
   const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
   const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
@@ -136,7 +142,7 @@ export function App() {
       setBriefing(state.briefing);
       setUsingMock(state.isMock);
       setSelectedSymbol(state.briefing.allSignals[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary()]);
+      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary(), refreshSetupSummary()]);
       if (state.isMock) {
         setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
       }
@@ -147,7 +153,7 @@ export function App() {
     await withAction("Run ingestion", async () => {
       const result = await runIngestion();
       setIngestion(result);
-      await refreshOutcomeSummary();
+      await Promise.all([refreshOutcomeSummary(), refreshSetupSummary()]);
     });
   }
 
@@ -170,7 +176,7 @@ export function App() {
         watchItems: current?.watchItems ?? []
       }));
       setSelectedSymbol(all[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary()]);
+      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary(), refreshSetupSummary()]);
     });
   }
 
@@ -180,7 +186,7 @@ export function App() {
       setUsingMock(false);
       setBriefing(result);
       setSelectedSymbol(result.allSignals[0]?.symbol ?? null);
-      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary()]);
+      await Promise.all([refreshSparklines(), refreshPerformancePreview(), refreshOutcomeSummary(), refreshSetupSummary()]);
     });
   }
 
@@ -216,6 +222,21 @@ export function App() {
       setOutcomeSummaryUnavailable(true);
     } finally {
       setOutcomeSummaryLoading(false);
+    }
+  }
+
+  async function refreshSetupSummary() {
+    setSetupSummaryLoading(true);
+
+    try {
+      const summary = await loadSignalOutcomeSetupSummary();
+      setSetupSummary(summary);
+      setSetupSummaryUnavailable(false);
+    } catch {
+      setSetupSummary(null);
+      setSetupSummaryUnavailable(true);
+    } finally {
+      setSetupSummaryLoading(false);
     }
   }
 
@@ -282,6 +303,8 @@ export function App() {
         summary={outcomeSummary}
         unavailable={outcomeSummaryUnavailable}
       />
+
+      <SetupPerformancePanel loading={setupSummaryLoading} summary={setupSummary} unavailable={setupSummaryUnavailable} />
 
       <SignalPerformancePreviewPanel preview={performancePreview} unavailable={performancePreviewUnavailable} />
 

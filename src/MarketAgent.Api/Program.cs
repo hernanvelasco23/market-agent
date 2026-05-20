@@ -180,6 +180,24 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/api/signals/outcomes/setup-summary",
+    async (
+        ISignalOutcomeService signalOutcomeService,
+        string? symbol,
+        string? status,
+        bool? isSuccessful,
+        int? days,
+        int? limit,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await signalOutcomeService.GetSetupSummaryAsync(
+            new SignalOutcomeQuery(symbol, status, isSuccessful, days, limit),
+            cancellationToken);
+
+        return Results.Ok(result);
+    });
+
+app.MapGet(
     "/api/historical/candles",
     async (IHistoricalMarketDataService historicalMarketDataService, int? days, CancellationToken cancellationToken) =>
     {

@@ -9,6 +9,7 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
 {
     private const int DefaultLimit = 100;
     private const int MaxLimit = 1000;
+    private const int MinimumSetupRankingSampleSize = 3;
 
     private static readonly TimeSpan FifteenMinutes = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan OneHour = TimeSpan.FromHours(1);
@@ -152,6 +153,56 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
             best1h?.ReturnPercent,
             worst1h?.Symbol,
             worst1h?.ReturnPercent);
+    }
+
+    public async Task<SignalOutcomeSetupSummary> GetSetupSummaryAsync(
+        SignalOutcomeQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var outcomes = await GetOutcomesAsync(query, cancellationToken);
+        var items = outcomes
+            .GroupBy(outcome => NormalizeSetup(outcome.Setup), StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var groupOutcomes = group.ToArray();
+                var returns15m = GetCheckpointReturns(groupOutcomes, outcome => outcome.PriceAfter15Minutes);
+                var returns1h = GetCheckpointReturns(groupOutcomes, outcome => outcome.PriceAfter1Hour);
+                var returns4h = GetCheckpointReturns(groupOutcomes, outcome => outcome.PriceAfter4Hours);
+
+                return new SignalOutcomeSetupSummaryItem(
+                    group.Key,
+                    groupOutcomes.Length,
+                    returns15m.Length,
+                    Average(returns15m.Select(item => (decimal?)item.ReturnPercent)),
+                    returns1h.Length,
+                    Average(returns1h.Select(item => (decimal?)item.ReturnPercent)),
+                    returns4h.Length,
+                    Average(returns4h.Select(item => (decimal?)item.ReturnPercent)));
+            })
+            .OrderByDescending(item => item.AverageReturn15m ?? decimal.MinValue)
+            .ThenBy(item => item.Setup, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var rankableItems = items
+            .Where(item => item.CountWith15m >= MinimumSetupRankingSampleSize &&
+                item.AverageReturn15m.HasValue)
+            .ToArray();
+        var bestSetup = rankableItems
+            .OrderByDescending(item => item.AverageReturn15m)
+            .ThenBy(item => item.Setup, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        var worstSetup = rankableItems
+            .OrderBy(item => item.AverageReturn15m)
+            .ThenBy(item => item.Setup, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        return new SignalOutcomeSetupSummary(
+            EnsureUtc(DateTime.UtcNow),
+            items.Length,
+            bestSetup?.Setup,
+            bestSetup?.AverageReturn15m,
+            worstSetup?.Setup,
+            worstSetup?.AverageReturn15m,
+            items);
     }
 
     private async Task<SignalOutcomeRecord> EvaluateCandidateAsync(
@@ -483,6 +534,13 @@ public sealed class SignalOutcomeService : ISignalOutcomeService
             Symbol = string.IsNullOrWhiteSpace(query.Symbol) ? null : query.Symbol.Trim().ToUpperInvariant(),
             Status = string.IsNullOrWhiteSpace(query.Status) ? null : query.Status.Trim()
         };
+    }
+
+    private static string NormalizeSetup(string? setup)
+    {
+        return string.IsNullOrWhiteSpace(setup)
+            ? "Unknown"
+            : setup.Trim();
     }
 
     private static decimal? Average(IEnumerable<decimal?> values)
