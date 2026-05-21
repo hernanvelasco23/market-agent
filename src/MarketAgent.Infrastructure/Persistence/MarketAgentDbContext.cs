@@ -13,6 +13,8 @@ public sealed class MarketAgentDbContext : DbContext
 
     public DbSet<PersistedSignalOutcome> SignalOutcomes => Set<PersistedSignalOutcome>();
 
+    public DbSet<PersistedAlertEvent> AlertEvents => Set<PersistedAlertEvent>();
+
     public DbSet<PersistedMarketSnapshot> MarketSnapshots => Set<PersistedMarketSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -117,5 +119,37 @@ public sealed class MarketAgentDbContext : DbContext
             .HasDatabaseName("IX_SignalOutcomes_EvaluationStatus");
         signalOutcome.HasIndex(outcome => outcome.IsSuccessful)
             .HasDatabaseName("IX_SignalOutcomes_IsSuccessful");
+
+        var alertEvent = modelBuilder.Entity<PersistedAlertEvent>();
+
+        alertEvent.ToTable("AlertEvents");
+        alertEvent.HasKey(item => item.Id);
+        alertEvent.Property(item => item.CreatedAtUtc).IsRequired();
+        alertEvent.Property(item => item.SignalSnapshotId).IsRequired();
+        alertEvent.Property(item => item.RunId).IsRequired();
+        alertEvent.Property(item => item.Symbol).HasMaxLength(32).IsRequired();
+        alertEvent.Property(item => item.Setup).HasMaxLength(128).IsRequired();
+        alertEvent.Property(item => item.Action).HasMaxLength(128).IsRequired();
+        alertEvent.Property(item => item.Score).HasPrecision(9, 2).IsRequired();
+        alertEvent.Property(item => item.Confidence).HasMaxLength(64).IsRequired();
+        alertEvent.Property(item => item.PriceAtSignal).HasPrecision(18, 6).IsRequired();
+        alertEvent.Property(item => item.AlertType).HasMaxLength(128).IsRequired();
+        alertEvent.Property(item => item.Title).HasMaxLength(256).IsRequired();
+        alertEvent.Property(item => item.Message).HasColumnType("nvarchar(max)").IsRequired();
+        alertEvent.Property(item => item.ReasonJson).HasColumnType("nvarchar(max)").IsRequired();
+        alertEvent.Property(item => item.DeliveryStatus).HasMaxLength(64).IsRequired();
+
+        alertEvent.HasOne(item => item.SignalSnapshot)
+            .WithMany(snapshot => snapshot.AlertEvents)
+            .HasForeignKey(item => item.SignalSnapshotId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        alertEvent.HasIndex(item => new { item.SignalSnapshotId, item.AlertType })
+            .IsUnique()
+            .HasDatabaseName("IX_AlertEvents_SignalSnapshotId_AlertType");
+        alertEvent.HasIndex(item => item.CreatedAtUtc)
+            .HasDatabaseName("IX_AlertEvents_CreatedAtUtc");
+        alertEvent.HasIndex(item => item.Symbol)
+            .HasDatabaseName("IX_AlertEvents_Symbol");
     }
 }

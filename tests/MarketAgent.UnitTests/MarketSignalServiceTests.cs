@@ -273,6 +273,13 @@ public sealed class MarketSignalServiceTests
 
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class ThrowingSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRepository
@@ -294,6 +301,13 @@ public sealed class MarketSignalServiceTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromException(_exception);
+        }
+
+        public Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

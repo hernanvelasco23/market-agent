@@ -1,4 +1,5 @@
 using MarketAgent.Domain.Entities;
+using MarketAgent.Application.Models;
 
 namespace MarketAgent.Application.Abstractions;
 
@@ -11,5 +12,9 @@ public interface ISignalSnapshotHistoryRepository
         string? marketRegime,
         string? triggeredAlertsJson,
         string source,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
+        int limit,
         CancellationToken cancellationToken = default);
 }

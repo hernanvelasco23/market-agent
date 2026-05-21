@@ -1,4 +1,5 @@
 using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.Models;
 using MarketAgent.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -33,5 +34,14 @@ public sealed class NoOpSignalSnapshotHistoryRepository : ISignalSnapshotHistory
         }
 
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult<IReadOnlyCollection<AlertEvaluationCandidate>>([]);
     }
 }
