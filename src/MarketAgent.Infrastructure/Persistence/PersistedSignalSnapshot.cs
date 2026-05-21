@@ -61,4 +61,6 @@ public sealed class PersistedSignalSnapshot
     public decimal? RecoveryFromLowPercent { get; set; }
 
     public PersistedSignalOutcome? Outcome { get; set; }
+
+    public ICollection<PersistedAlertEvent> AlertEvents { get; set; } = [];
 }

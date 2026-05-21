@@ -1,4 +1,5 @@
 using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.Alerts;
 using MarketAgent.Application.Briefing;
 using MarketAgent.Application.Historical;
 using MarketAgent.Application.Models;
@@ -37,6 +38,7 @@ if (string.IsNullOrWhiteSpace(sqlServerConnectionString))
     builder.Services.AddSingleton<IMarketSnapshotRepository, InMemoryMarketSnapshotRepository>();
     builder.Services.AddScoped<ISignalSnapshotHistoryRepository, NoOpSignalSnapshotHistoryRepository>();
     builder.Services.AddScoped<ISignalOutcomeRepository, NoOpSignalOutcomeRepository>();
+    builder.Services.AddScoped<IAlertEventRepository, NoOpAlertEventRepository>();
 }
 else
 {
@@ -45,6 +47,7 @@ else
     builder.Services.AddScoped<IMarketSnapshotRepository, EfMarketSnapshotRepository>();
     builder.Services.AddScoped<ISignalSnapshotHistoryRepository, EfSignalSnapshotHistoryRepository>();
     builder.Services.AddScoped<ISignalOutcomeRepository, EfSignalOutcomeRepository>();
+    builder.Services.AddScoped<IAlertEventRepository, EfAlertEventRepository>();
 }
 builder.Services.AddScoped<IPriceIngestionService, PriceIngestionService>();
 builder.Services.AddScoped<IHistoricalMarketDataService, HistoricalMarketDataService>();
@@ -55,6 +58,7 @@ builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>
 builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
 builder.Services.AddScoped<ISignalOutcomeService, SignalOutcomeService>();
 builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePreviewService>();
+builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
 builder.Services.Configure<HistoricalMarketDataOptions>(
@@ -140,6 +144,25 @@ app.MapPost(
     async (ISignalOutcomeService signalOutcomeService, int? limit, CancellationToken cancellationToken) =>
     {
         var result = await signalOutcomeService.EvaluateAsync(limit, cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapPost(
+    "/api/alerts/evaluate",
+    async (IAlertEvaluationService alertEvaluationService, int? limit, CancellationToken cancellationToken) =>
+    {
+        var result = await alertEvaluationService.EvaluateAsync(limit, cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/alerts",
+    async (IAlertEvaluationService alertEvaluationService, int? limit, CancellationToken cancellationToken) =>
+    {
+        var result = await alertEvaluationService.GetAlertsAsync(
+            new AlertEventQuery(limit),
+            cancellationToken);
+
         return Results.Ok(result);
     });
 

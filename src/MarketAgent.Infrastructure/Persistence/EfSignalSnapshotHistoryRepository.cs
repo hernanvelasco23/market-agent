@@ -1,6 +1,8 @@
 using System.Text.Json;
 using MarketAgent.Application.Abstractions;
+using MarketAgent.Application.Models;
 using MarketAgent.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace MarketAgent.Infrastructure.Persistence;
 
@@ -44,6 +46,27 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
 
         await _dbContext.SignalSnapshots.AddRangeAsync(rows, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.SignalSnapshots
+            .AsNoTracking()
+            .OrderByDescending(snapshot => snapshot.CreatedAtUtc)
+            .Take(limit)
+            .Select(snapshot => new AlertEvaluationCandidate(
+                snapshot.Id,
+                snapshot.CreatedAtUtc,
+                snapshot.RunId,
+                snapshot.Symbol,
+                snapshot.Setup,
+                snapshot.Action,
+                snapshot.Score,
+                snapshot.Confidence,
+                snapshot.Price))
+            .ToArrayAsync(cancellationToken);
     }
 
     private static PersistedSignalSnapshot ToSnapshot(
