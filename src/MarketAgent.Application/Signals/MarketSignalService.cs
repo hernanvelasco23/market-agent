@@ -37,6 +37,7 @@ public sealed class MarketSignalService : IMarketSignalService
         var snapshots = await _marketSnapshotRepository.GetAllAsync(cancellationToken);
         var candles = await GetHistoricalCandlesAsync(snapshots, cancellationToken);
         var signals = _marketSignalAnalyzer.Analyze(snapshots, candles);
+        LogNormalizedScores(signals);
         var generatedAtUtc = signals.Count > 0
             ? signals.Max(signal => signal.GeneratedAtUtc)
             : DateTime.UtcNow;
@@ -45,6 +46,25 @@ public sealed class MarketSignalService : IMarketSignalService
         await PersistSignalHistoryAsync(runId, generatedAtUtc, signals, cancellationToken);
 
         return new MarketSignalRunResult(generatedAtUtc, signals);
+    }
+
+    private void LogNormalizedScores(IReadOnlyCollection<MarketSignal> signals)
+    {
+        foreach (var signal in signals)
+        {
+            if (signal.RawScore is null || signal.RawScore == signal.Score)
+            {
+                continue;
+            }
+
+            _logger.LogInformation(
+                "Signal score normalized for {Symbol} {Setup}: rawScore={RawScore}, calibratedScore={CalibratedScore}, normalizationDelta={NormalizationDelta}.",
+                signal.Symbol,
+                signal.SetupType,
+                signal.RawScore,
+                signal.Score,
+                signal.Score - signal.RawScore.Value);
+        }
     }
 
     private async Task PersistSignalHistoryAsync(

@@ -23,6 +23,7 @@ public sealed class ScoreAttributionBuilderTests
         Assert.Equal(100m, attribution.RawScore);
         Assert.Equal(93.25m, attribution.CalibratedScore);
         Assert.Equal(100m, attribution.FinalScore);
+        Assert.Equal(-6.75m, attribution.NormalizationDelta);
         Assert.True(attribution.WasCapped);
         Assert.True(attribution.WasNormalized);
         Assert.NotNull(attribution.CalibrationReason);
@@ -41,6 +42,7 @@ public sealed class ScoreAttributionBuilderTests
         Assert.Equal(50m, attribution.UncappedScore);
         Assert.Equal(50m, attribution.RawScore);
         Assert.Equal(50m, attribution.CalibratedScore);
+        Assert.Equal(0m, attribution.NormalizationDelta);
         Assert.False(attribution.WasNormalized);
         Assert.Null(attribution.CalibrationReason);
         Assert.False(attribution.WasCapped);
@@ -70,5 +72,25 @@ public sealed class ScoreAttributionBuilderTests
         Assert.Equal(84.13m, diagnostics.AverageCalibratedScore);
         Assert.Equal(25m, diagnostics.Top10RawScoreRange);
         Assert.Equal(18.25m, diagnostics.Top10CalibratedScoreRange);
+    }
+
+    [Fact]
+    public void Build_PreservesRawScoreAndUsesCalibratedFinalScore_WhenCalibrationIsOperative()
+    {
+        var attribution = ScoreAttributionBuilder.Build(
+            rawScore: 100m,
+            finalScore: 93.25m,
+            scoreBreakdown:
+            [
+                new MarketSignalScoreFactor("RelativeStrengthVsSpy", 60m)
+            ]);
+
+        Assert.Equal(110m, attribution.UncappedScore);
+        Assert.Equal(100m, attribution.RawScore);
+        Assert.Equal(93.25m, attribution.CalibratedScore);
+        Assert.Equal(93.25m, attribution.FinalScore);
+        Assert.Equal(-6.75m, attribution.NormalizationDelta);
+        Assert.True(attribution.WasCapped);
+        Assert.True(attribution.WasNormalized);
     }
 }

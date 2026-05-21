@@ -6,6 +6,7 @@ public sealed record ScoreAttribution(
     decimal RawScore,
     decimal CalibratedScore,
     decimal FinalScore,
+    decimal NormalizationDelta,
     bool WasCapped,
     bool WasNormalized,
     string? CalibrationReason,
@@ -17,6 +18,7 @@ public sealed record ScoreAttribution(
 public sealed record ScoreCalibrationResult(
     decimal RawScore,
     decimal CalibratedScore,
+    decimal NormalizationDelta,
     bool WasNormalized,
     string? Reason);
 

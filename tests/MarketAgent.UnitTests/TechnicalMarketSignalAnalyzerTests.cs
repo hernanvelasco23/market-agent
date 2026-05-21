@@ -259,6 +259,35 @@ public sealed class TechnicalMarketSignalAnalyzerTests
     }
 
     [Fact]
+    public void Analyze_UsesCalibratedScoreAsOperativeScore_WhenRawScoreExceedsSoftCap()
+    {
+        var analyzer = CreateAnalyzer(new TechnicalIndicators(
+            Ema9: 112m,
+            Ema20: 100m,
+            Ema50: 90m,
+            Rsi14: 70m,
+            Atr14: 4m,
+            AverageVolume10: 1000000m,
+            AverageVolume20: 500000m));
+        var snapshot = CreateSnapshot(
+            "NVDA",
+            price: 120m,
+            openPrice: 100m,
+            highPrice: 121m,
+            lowPrice: 90m,
+            previousClose: 100m,
+            volume: 1500000m);
+        var candles = CreateTrendingCandles("NVDA", start: 70m, step: 1.1m, count: 60);
+
+        var signal = Assert.Single(analyzer.Analyze([snapshot], candles));
+        var calibration = ScoreCalibrationService.Calibrate(signal.RawScore!.Value);
+
+        Assert.True(signal.RawScore > 85m);
+        Assert.Equal(calibration.CalibratedScore, signal.Score);
+        Assert.True(signal.Score < signal.RawScore);
+    }
+
+    [Fact]
     public void Analyze_CalculatesRelativeStrengthRelativeVolumeAndEma20Extension()
     {
         var analyzer = CreateAnalyzer(new TechnicalIndicators(

@@ -12,6 +12,15 @@ public static class ScoreAttributionBuilder
         IReadOnlyCollection<MarketSignalScoreFactor> scoreBreakdown,
         decimal baseScore = DefaultBaseScore)
     {
+        return Build(finalScore, finalScore, scoreBreakdown, baseScore);
+    }
+
+    public static ScoreAttribution Build(
+        decimal rawScore,
+        decimal finalScore,
+        IReadOnlyCollection<MarketSignalScoreFactor> scoreBreakdown,
+        decimal baseScore = DefaultBaseScore)
+    {
         ArgumentNullException.ThrowIfNull(scoreBreakdown);
 
         var contributions = scoreBreakdown
@@ -31,7 +40,7 @@ public static class ScoreAttributionBuilder
             .ThenBy(contribution => contribution.Factor, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var uncappedScore = baseScore + contributions.Sum(contribution => contribution.Points);
-        var calibration = ScoreCalibrationService.Calibrate(finalScore);
+        var calibration = ScoreCalibrationService.Calibrate(rawScore);
 
         return new ScoreAttribution(
             baseScore,
@@ -39,7 +48,8 @@ public static class ScoreAttributionBuilder
             calibration.RawScore,
             calibration.CalibratedScore,
             finalScore,
-            uncappedScore > finalScore && finalScore == 100m,
+            calibration.NormalizationDelta,
+            uncappedScore > calibration.RawScore && calibration.RawScore == 100m,
             calibration.WasNormalized,
             calibration.Reason,
             positiveContributions.FirstOrDefault()?.Factor,

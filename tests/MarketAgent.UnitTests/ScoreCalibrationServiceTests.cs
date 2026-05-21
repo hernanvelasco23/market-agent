@@ -20,7 +20,23 @@ public sealed class ScoreCalibrationServiceTests
         var result = ScoreCalibrationService.Calibrate((decimal)rawScore);
 
         Assert.Equal((decimal)expectedCalibratedScore, result.CalibratedScore);
+        Assert.Equal(result.CalibratedScore - result.RawScore, result.NormalizationDelta);
         Assert.Equal(expectedWasNormalized, result.WasNormalized);
+    }
+
+    [Theory]
+    [InlineData(100, 93.25, -6.75)]
+    [InlineData(99.24, 92.83, -6.41)]
+    [InlineData(80, 80, 0)]
+    public void Calibrate_ReturnsNormalizationDelta(
+        double rawScore,
+        double expectedCalibratedScore,
+        double expectedNormalizationDelta)
+    {
+        var result = ScoreCalibrationService.Calibrate((decimal)rawScore);
+
+        Assert.Equal((decimal)expectedCalibratedScore, result.CalibratedScore);
+        Assert.Equal((decimal)expectedNormalizationDelta, result.NormalizationDelta);
     }
 
     [Fact]

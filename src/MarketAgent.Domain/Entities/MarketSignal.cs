@@ -55,7 +55,8 @@ public sealed class MarketSignal
         decimal? suggestedPositionSize,
         decimal? regimeSizingMultiplier,
         IReadOnlyCollection<MarketSignalScoreFactor> scoreBreakdown,
-        DateTime generatedAtUtc)
+        DateTime generatedAtUtc,
+        decimal? rawScore = null)
     {
         if (string.IsNullOrWhiteSpace(symbol))
         {
@@ -65,6 +66,11 @@ public sealed class MarketSignal
         if (score is < 0 or > 100)
         {
             throw new ArgumentOutOfRangeException(nameof(score), "Market signal score must be between 0 and 100.");
+        }
+
+        if (rawScore is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(rawScore), "Market signal raw score must be between 0 and 100.");
         }
 
         if (string.IsNullOrWhiteSpace(reason))
@@ -155,6 +161,7 @@ public sealed class MarketSignal
         RegimeSizingMultiplier = regimeSizingMultiplier;
         ScoreBreakdown = scoreBreakdown;
         GeneratedAtUtc = generatedAtUtc;
+        RawScore = rawScore;
     }
 
     public string Symbol { get; }
@@ -164,6 +171,8 @@ public sealed class MarketSignal
     public MarketSignalType SignalType { get; }
 
     public decimal Score { get; }
+
+    public decimal? RawScore { get; }
 
     public string SetupType { get; }
 

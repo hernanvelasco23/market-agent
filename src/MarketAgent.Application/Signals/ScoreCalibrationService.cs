@@ -21,6 +21,7 @@ public static class ScoreCalibrationService
         return new ScoreCalibrationResult(
             normalizedRawScore,
             calibratedScore,
+            Round(calibratedScore - normalizedRawScore),
             wasNormalized,
             wasNormalized
                 ? $"Soft cap applied above {SoftCapThreshold:0.##} with compression factor {CompressionFactor:0.##}."
