@@ -76,6 +76,7 @@ public sealed class MarketAgentDbContext : DbContext
         signalSnapshot.Property(snapshot => snapshot.Stop).HasPrecision(18, 6);
         signalSnapshot.Property(snapshot => snapshot.Target).HasPrecision(18, 6);
         signalSnapshot.Property(snapshot => snapshot.ScoreBreakdownJson).HasColumnType("nvarchar(max)");
+        signalSnapshot.Property(snapshot => snapshot.ScoreAttributionJson).HasColumnType("nvarchar(max)");
         signalSnapshot.Property(snapshot => snapshot.OpenGapPercent).HasPrecision(9, 2);
         signalSnapshot.Property(snapshot => snapshot.RecoveryFromLowPercent).HasPrecision(9, 2);
 
