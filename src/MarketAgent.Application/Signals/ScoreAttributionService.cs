@@ -41,7 +41,7 @@ public sealed class ScoreAttributionService : IScoreAttributionService
         _logger.LogDebug(
             "Score attribution diagnostics for signal {SignalSnapshotId}: capped={CappedCount}, averageUncappedScore={AverageUncappedScore}, highestUncappedScore={HighestUncappedScore}.",
             signalSnapshotId,
-            diagnostics.CappedCount,
+            diagnostics.CappedRawScoreCount,
             diagnostics.AverageUncappedScore,
             diagnostics.HighestUncappedScore);
 
@@ -65,7 +65,11 @@ public sealed class ScoreAttributionService : IScoreAttributionService
 
         try
         {
-            return JsonSerializer.Deserialize<ScoreAttribution>(json, JsonOptions);
+            var attribution = JsonSerializer.Deserialize<ScoreAttribution>(json, JsonOptions);
+
+            return attribution is null
+                ? null
+                : EnsureCalibration(attribution);
         }
         catch (JsonException)
         {
@@ -80,6 +84,27 @@ public sealed class ScoreAttributionService : IScoreAttributionService
         var factors = DeserializeScoreBreakdown(scoreBreakdownJson);
 
         return ScoreAttributionBuilder.Build(finalScore, factors);
+    }
+
+    private static ScoreAttribution EnsureCalibration(ScoreAttribution attribution)
+    {
+        if (attribution.RawScore != 0m ||
+            attribution.FinalScore == 0m ||
+            attribution.CalibratedScore != 0m ||
+            attribution.CalibrationReason is not null)
+        {
+            return attribution;
+        }
+
+        var calibration = ScoreCalibrationService.Calibrate(attribution.FinalScore);
+
+        return attribution with
+        {
+            RawScore = calibration.RawScore,
+            CalibratedScore = calibration.CalibratedScore,
+            WasNormalized = calibration.WasNormalized,
+            CalibrationReason = calibration.Reason
+        };
     }
 
     private static IReadOnlyCollection<MarketSignalScoreFactor> DeserializeScoreBreakdown(string? json)

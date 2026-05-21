@@ -223,3 +223,15 @@ Database:
 
 Hide empty confidence groups and empty score buckets in the frontend by default.
 Only render groups with at least one sample count.
+
+### 8. Add score spread diagnostics
+
+- Compute:
+  - top 10 raw score range
+  - top 10 calibrated score range
+- This helps validate whether calibration improves top candidate separation.
+
+## V1 Safety Decision
+
+Do not modify sorting/ranking behavior anywhere in V1.
+Calibration is diagnostics-only until dispersion improvements are reviewed manually.
