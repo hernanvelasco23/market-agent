@@ -37,7 +37,7 @@ export const predefinedWatchlists: Watchlist[] = [
   {
     id: "swing-setups",
     name: "Swing Setups",
-    symbols: ["NVDA", "AMD", "TSLA", "MU", "RKLB", "ABNB", "PLTR", "PATH"],
+    symbols: ["NVDA", "AMD", "TSLA", "MU", "RKLB", "RGTI", "SE", "IBM", "ABNB", "PLTR", "PATH"],
     kind: "predefined"
   }
 ];

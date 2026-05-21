@@ -17,4 +17,8 @@ public interface ISignalSnapshotHistoryRepository
     Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
         int limit,
         CancellationToken cancellationToken = default);
+
+    Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
+        Guid signalSnapshotId,
+        CancellationToken cancellationToken = default);
 }

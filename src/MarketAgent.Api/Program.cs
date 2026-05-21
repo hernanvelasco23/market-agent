@@ -59,6 +59,7 @@ builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
 builder.Services.AddScoped<ISignalOutcomeService, SignalOutcomeService>();
 builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePreviewService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
+builder.Services.AddScoped<IScoreAttributionService, ScoreAttributionService>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
 builder.Services.Configure<HistoricalMarketDataOptions>(
@@ -164,6 +165,17 @@ app.MapGet(
             cancellationToken);
 
         return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/signals/{signalSnapshotId:guid}/score-attribution",
+    async (IScoreAttributionService scoreAttributionService, Guid signalSnapshotId, CancellationToken cancellationToken) =>
+    {
+        var result = await scoreAttributionService.GetAsync(signalSnapshotId, cancellationToken);
+
+        return result is null
+            ? Results.NotFound()
+            : Results.Ok(result);
     });
 
 app.MapGet(

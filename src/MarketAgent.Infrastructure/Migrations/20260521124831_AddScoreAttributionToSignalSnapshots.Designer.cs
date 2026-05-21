@@ -4,6 +4,7 @@ using MarketAgent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MarketAgent.Infrastructure.Migrations
 {
     [DbContext(typeof(MarketAgentDbContext))]
-    partial class MarketAgentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260521124831_AddScoreAttributionToSignalSnapshots")]
+    partial class AddScoreAttributionToSignalSnapshots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

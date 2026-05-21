@@ -54,6 +54,8 @@ public sealed class PersistedSignalSnapshot
 
     public string? ScoreBreakdownJson { get; set; }
 
+    public string? ScoreAttributionJson { get; set; }
+
     public bool OpeningRedReversalDetected { get; set; }
 
     public decimal? OpenGapPercent { get; set; }

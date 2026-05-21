@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Models;
+using MarketAgent.Application.Signals;
 using MarketAgent.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -69,6 +70,26 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
             .ToArrayAsync(cancellationToken);
     }
 
+    public async Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
+        Guid signalSnapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.SignalSnapshots
+            .AsNoTracking()
+            .Where(snapshot => snapshot.Id == signalSnapshotId)
+            .Select(snapshot => new ScoreAttributionSnapshot(
+                snapshot.Id,
+                snapshot.RunId,
+                snapshot.Symbol,
+                snapshot.Setup,
+                snapshot.Action,
+                snapshot.Score,
+                snapshot.CreatedAtUtc,
+                snapshot.ScoreAttributionJson,
+                snapshot.ScoreBreakdownJson))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     private static PersistedSignalSnapshot ToSnapshot(
         Guid runId,
         DateTime createdAtUtc,
@@ -77,6 +98,10 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
         string? triggeredAlertsJson,
         string source)
     {
+        var scoreAttribution = ScoreAttributionBuilder.Build(
+            signal.Score,
+            signal.ScoreBreakdown);
+
         return new PersistedSignalSnapshot
         {
             Id = Guid.NewGuid(),
@@ -105,6 +130,7 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
             Stop = signal.Stop,
             Target = signal.Target,
             ScoreBreakdownJson = JsonSerializer.Serialize(signal.ScoreBreakdown, JsonOptions),
+            ScoreAttributionJson = JsonSerializer.Serialize(scoreAttribution, JsonOptions),
             OpeningRedReversalDetected = signal.OpeningRedReversalDetected,
             OpenGapPercent = signal.OpenGapPercent,
             RecoveryFromLowPercent = signal.RecoveryFromLowPercent

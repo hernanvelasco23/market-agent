@@ -155,6 +155,13 @@ public sealed class AlertEvaluationServiceTests
             return Task.FromResult<IReadOnlyCollection<AlertEvaluationCandidate>>(
                 _candidates.Take(limit).ToArray());
         }
+
+        public Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
+            Guid signalSnapshotId,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class RecordingAlertEventRepository : IAlertEventRepository
