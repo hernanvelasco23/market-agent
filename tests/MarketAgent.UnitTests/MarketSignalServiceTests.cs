@@ -73,6 +73,47 @@ public sealed class MarketSignalServiceTests
     }
 
     [Fact]
+    public async Task GenerateAsync_PassesCalibratedSignalScoreToPersistence()
+    {
+        var snapshots = new StubMarketSnapshotRepository(
+        [
+            CreateSnapshot(
+                "NVDA",
+                price: 120m,
+                openPrice: 100m,
+                highPrice: 121m,
+                lowPrice: 90m,
+                previousClose: 100m,
+                volume: 1500000m)
+        ]);
+        var signalHistory = new RecordingSignalSnapshotHistoryRepository();
+        var service = new MarketSignalService(
+            snapshots,
+            new TechnicalMarketSignalAnalyzer(
+                new StubTechnicalIndicatorService(new TechnicalIndicators(
+                    Ema9: 112m,
+                    Ema20: 100m,
+                    Ema50: 90m,
+                    Rsi14: 70m,
+                    Atr14: 4m,
+                    AverageVolume10: 1000000m,
+                    AverageVolume20: 500000m)),
+                new RiskPositionOptions()),
+            new StubHistoricalMarketDataService(),
+            signalHistory,
+            NullLogger<MarketSignalService>.Instance);
+
+        var result = await service.GenerateAsync();
+        var generatedSignal = Assert.Single(result.Signals);
+        var persistedSignal = Assert.Single(signalHistory.Signals);
+
+        Assert.True(generatedSignal.RawScore > 85m);
+        Assert.Equal(generatedSignal.Score, persistedSignal.Score);
+        Assert.Equal(generatedSignal.RawScore, persistedSignal.RawScore);
+        Assert.True(persistedSignal.Score < persistedSignal.RawScore);
+    }
+
+    [Fact]
     public async Task GenerateAsync_ReturnsSignals_WhenPersistenceFails()
     {
         var snapshots = new StubMarketSnapshotRepository(
@@ -126,7 +167,8 @@ public sealed class MarketSignalServiceTests
         decimal openPrice,
         decimal highPrice,
         decimal lowPrice,
-        decimal previousClose)
+        decimal previousClose,
+        decimal volume = 1000000m)
     {
         return new MarketSnapshot(
             Guid.NewGuid(),
@@ -136,7 +178,7 @@ public sealed class MarketSignalServiceTests
             "USD",
             DateTime.SpecifyKind(new DateTime(2026, 5, 18, 15, 0, 0), DateTimeKind.Utc),
             "UnitTest",
-            volume: 1000000m,
+            volume,
             openPrice,
             highPrice,
             lowPrice,
@@ -181,6 +223,12 @@ public sealed class MarketSignalServiceTests
     private sealed class StubHistoricalMarketDataService : IHistoricalMarketDataService
     {
         private readonly List<string> _requestedSymbols = [];
+        private readonly IReadOnlyCollection<MarketCandle>? _candles;
+
+        public StubHistoricalMarketDataService(IReadOnlyCollection<MarketCandle>? candles = null)
+        {
+            _candles = candles;
+        }
 
         public IReadOnlyCollection<string> RequestedSymbols => _requestedSymbols;
 
@@ -198,7 +246,10 @@ public sealed class MarketSignalServiceTests
         {
             _requestedSymbols.Add(asset.Symbol);
 
-            IReadOnlyCollection<MarketCandle> candles = asset.Symbol.Equals("SPY", StringComparison.OrdinalIgnoreCase)
+            IReadOnlyCollection<MarketCandle> candles = _candles is not null &&
+                    !asset.Symbol.Equals("SPY", StringComparison.OrdinalIgnoreCase)
+                ? _candles
+                : asset.Symbol.Equals("SPY", StringComparison.OrdinalIgnoreCase)
                 ? CreateSpyCandles()
                 : [];
 
@@ -238,6 +289,21 @@ public sealed class MarketSignalServiceTests
         public TechnicalIndicators Calculate(IReadOnlyCollection<MarketCandle> candles)
         {
             return new TechnicalIndicators(null, null, null, null, null, null, null);
+        }
+    }
+
+    private sealed class StubTechnicalIndicatorService : ITechnicalIndicatorService
+    {
+        private readonly TechnicalIndicators _indicators;
+
+        public StubTechnicalIndicatorService(TechnicalIndicators indicators)
+        {
+            _indicators = indicators;
+        }
+
+        public TechnicalIndicators Calculate(IReadOnlyCollection<MarketCandle> candles)
+        {
+            return _indicators;
         }
     }
 

@@ -228,12 +228,15 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             takeProfits,
             marketRegime,
             vix: null);
+        var rawScore = roundedScore;
+        var calibration = ScoreCalibrationService.Calibrate(rawScore);
+        var operativeScore = calibration.CalibratedScore;
 
         return new MarketSignal(
             latest.Symbol,
             latest.AssetType,
             signalType,
-            roundedScore,
+            operativeScore,
             setupType,
             reason,
             action,
@@ -282,7 +285,8 @@ public sealed class TechnicalMarketSignalAnalyzer : IMarketSignalAnalyzer
             scoreBreakdown
                 .Select(item => item with { Points = Round(item.Points) })
                 .ToArray(),
-            generatedAtUtc);
+            generatedAtUtc,
+            rawScore);
     }
 
     private static decimal? CalculateSpyChange(

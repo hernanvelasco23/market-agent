@@ -93,7 +93,9 @@ public sealed class ScoreAttributionService : IScoreAttributionService
             attribution.CalibratedScore != 0m ||
             attribution.CalibrationReason is not null)
         {
-            return attribution;
+            return attribution.WasNormalized && attribution.NormalizationDelta == 0m
+                ? attribution with { NormalizationDelta = Round(attribution.CalibratedScore - attribution.RawScore) }
+                : attribution;
         }
 
         var calibration = ScoreCalibrationService.Calibrate(attribution.FinalScore);
@@ -102,9 +104,15 @@ public sealed class ScoreAttributionService : IScoreAttributionService
         {
             RawScore = calibration.RawScore,
             CalibratedScore = calibration.CalibratedScore,
+            NormalizationDelta = calibration.NormalizationDelta,
             WasNormalized = calibration.WasNormalized,
             CalibrationReason = calibration.Reason
         };
+    }
+
+    private static decimal Round(decimal value)
+    {
+        return Math.Round(value, 2, MidpointRounding.AwayFromZero);
     }
 
     private static IReadOnlyCollection<MarketSignalScoreFactor> DeserializeScoreBreakdown(string? json)

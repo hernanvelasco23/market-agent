@@ -36,6 +36,7 @@ public sealed class ScoreAttributionServiceTests
         Assert.Equal(110m, result.Attribution.UncappedScore);
         Assert.Equal(100m, result.Attribution.RawScore);
         Assert.Equal(93.25m, result.Attribution.CalibratedScore);
+        Assert.Equal(-6.75m, result.Attribution.NormalizationDelta);
         Assert.True(result.Attribution.WasCapped);
         Assert.True(result.Attribution.WasNormalized);
         Assert.NotNull(result.Attribution.CalibrationReason);
@@ -69,6 +70,7 @@ public sealed class ScoreAttributionServiceTests
         Assert.Equal(60m, result.Attribution.UncappedScore);
         Assert.Equal(60m, result.Attribution.RawScore);
         Assert.Equal(60m, result.Attribution.CalibratedScore);
+        Assert.Equal(0m, result.Attribution.NormalizationDelta);
         Assert.False(result.Attribution.WasCapped);
         Assert.False(result.Attribution.WasNormalized);
         Assert.Equal("PositiveEmaStack", result.Attribution.DominantPositiveFactor);

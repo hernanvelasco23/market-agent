@@ -99,6 +99,7 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
         string source)
     {
         var scoreAttribution = ScoreAttributionBuilder.Build(
+            signal.RawScore ?? signal.Score,
             signal.Score,
             signal.ScoreBreakdown);
 

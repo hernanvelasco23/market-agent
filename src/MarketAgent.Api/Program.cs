@@ -5,6 +5,7 @@ using MarketAgent.Application.Historical;
 using MarketAgent.Application.Models;
 using MarketAgent.Application.PriceIngestion;
 using MarketAgent.Application.Signals;
+using MarketAgent.Application.SystemCycle;
 using MarketAgent.Infrastructure.AI;
 using MarketAgent.Infrastructure.Indicators;
 using MarketAgent.Infrastructure.MarketData;
@@ -60,6 +61,7 @@ builder.Services.AddScoped<ISignalOutcomeService, SignalOutcomeService>();
 builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePreviewService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<IScoreAttributionService, ScoreAttributionService>();
+builder.Services.AddScoped<IManualSystemCycleService, ManualSystemCycleService>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
 builder.Services.Configure<HistoricalMarketDataOptions>(
@@ -153,6 +155,21 @@ app.MapPost(
     async (IAlertEvaluationService alertEvaluationService, int? limit, CancellationToken cancellationToken) =>
     {
         var result = await alertEvaluationService.EvaluateAsync(limit, cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapPost(
+    "/api/system/run-cycle",
+    async (
+        IManualSystemCycleService manualSystemCycleService,
+        int? outcomeLimit,
+        int? alertLimit,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await manualSystemCycleService.RunAsync(
+            new ManualSystemCycleRequest(outcomeLimit, alertLimit),
+            cancellationToken);
+
         return Results.Ok(result);
     });
 
