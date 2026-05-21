@@ -31,12 +31,17 @@ public static class ScoreAttributionBuilder
             .ThenBy(contribution => contribution.Factor, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var uncappedScore = baseScore + contributions.Sum(contribution => contribution.Points);
+        var calibration = ScoreCalibrationService.Calibrate(finalScore);
 
         return new ScoreAttribution(
             baseScore,
             uncappedScore,
+            calibration.RawScore,
+            calibration.CalibratedScore,
             finalScore,
             uncappedScore > finalScore && finalScore == 100m,
+            calibration.WasNormalized,
+            calibration.Reason,
             positiveContributions.FirstOrDefault()?.Factor,
             negativeContributions.FirstOrDefault()?.Factor,
             positiveContributions,
@@ -50,14 +55,29 @@ public static class ScoreAttributionBuilder
 
         if (attributions.Count == 0)
         {
-            return new ScoreAttributionDiagnostics(0, 0, null, null);
+            return new ScoreAttributionDiagnostics(0, 0, null, null, null, null, null, null);
         }
+
+        var top10RawScores = attributions
+            .OrderByDescending(attribution => attribution.RawScore)
+            .Take(10)
+            .Select(attribution => attribution.RawScore)
+            .ToArray();
+        var top10CalibratedScores = attributions
+            .OrderByDescending(attribution => attribution.CalibratedScore)
+            .Take(10)
+            .Select(attribution => attribution.CalibratedScore)
+            .ToArray();
 
         return new ScoreAttributionDiagnostics(
             attributions.Count,
             attributions.Count(attribution => attribution.WasCapped),
             Round(attributions.Average(attribution => attribution.UncappedScore)),
-            Round(attributions.Max(attribution => attribution.UncappedScore)));
+            Round(attributions.Max(attribution => attribution.UncappedScore)),
+            Round(attributions.Average(attribution => attribution.RawScore)),
+            Round(attributions.Average(attribution => attribution.CalibratedScore)),
+            CalculateRange(top10RawScores),
+            CalculateRange(top10CalibratedScores));
     }
 
     private static string NormalizeFactor(string value)
@@ -70,5 +90,12 @@ public static class ScoreAttributionBuilder
     private static decimal Round(decimal value)
     {
         return Math.Round(value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal? CalculateRange(IReadOnlyCollection<decimal> values)
+    {
+        return values.Count == 0
+            ? null
+            : Round(values.Max() - values.Min());
     }
 }

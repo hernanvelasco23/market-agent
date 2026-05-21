@@ -20,8 +20,12 @@ public sealed class ScoreAttributionBuilderTests
 
         Assert.Equal(50m, attribution.BaseScore);
         Assert.Equal(110m, attribution.UncappedScore);
+        Assert.Equal(100m, attribution.RawScore);
+        Assert.Equal(93.25m, attribution.CalibratedScore);
         Assert.Equal(100m, attribution.FinalScore);
         Assert.True(attribution.WasCapped);
+        Assert.True(attribution.WasNormalized);
+        Assert.NotNull(attribution.CalibrationReason);
         Assert.Equal("MomentumContinuation", attribution.DominantPositiveFactor);
         Assert.Equal("OverextensionRisk", attribution.DominantNegativeFactor);
         Assert.Equal(3, attribution.PositiveContributions.Count);
@@ -35,6 +39,10 @@ public sealed class ScoreAttributionBuilderTests
 
         Assert.Equal(50m, attribution.BaseScore);
         Assert.Equal(50m, attribution.UncappedScore);
+        Assert.Equal(50m, attribution.RawScore);
+        Assert.Equal(50m, attribution.CalibratedScore);
+        Assert.False(attribution.WasNormalized);
+        Assert.Null(attribution.CalibrationReason);
         Assert.False(attribution.WasCapped);
         Assert.Null(attribution.DominantPositiveFactor);
         Assert.Null(attribution.DominantNegativeFactor);
@@ -55,8 +63,12 @@ public sealed class ScoreAttributionBuilderTests
         var diagnostics = ScoreAttributionBuilder.BuildDiagnostics([capped, uncapped]);
 
         Assert.Equal(2, diagnostics.TotalCount);
-        Assert.Equal(1, diagnostics.CappedCount);
+        Assert.Equal(1, diagnostics.CappedRawScoreCount);
         Assert.Equal(92.5m, diagnostics.AverageUncappedScore);
         Assert.Equal(110m, diagnostics.HighestUncappedScore);
+        Assert.Equal(87.5m, diagnostics.AverageRawScore);
+        Assert.Equal(84.13m, diagnostics.AverageCalibratedScore);
+        Assert.Equal(25m, diagnostics.Top10RawScoreRange);
+        Assert.Equal(18.25m, diagnostics.Top10CalibratedScoreRange);
     }
 }

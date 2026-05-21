@@ -34,7 +34,11 @@ public sealed class ScoreAttributionServiceTests
         Assert.NotNull(result);
         Assert.Equal(signalSnapshotId, result.SignalSnapshotId);
         Assert.Equal(110m, result.Attribution.UncappedScore);
+        Assert.Equal(100m, result.Attribution.RawScore);
+        Assert.Equal(93.25m, result.Attribution.CalibratedScore);
         Assert.True(result.Attribution.WasCapped);
+        Assert.True(result.Attribution.WasNormalized);
+        Assert.NotNull(result.Attribution.CalibrationReason);
         Assert.Equal("RelativeStrengthVsSpy", result.Attribution.DominantPositiveFactor);
     }
 
@@ -63,7 +67,10 @@ public sealed class ScoreAttributionServiceTests
 
         Assert.NotNull(result);
         Assert.Equal(60m, result.Attribution.UncappedScore);
+        Assert.Equal(60m, result.Attribution.RawScore);
+        Assert.Equal(60m, result.Attribution.CalibratedScore);
         Assert.False(result.Attribution.WasCapped);
+        Assert.False(result.Attribution.WasNormalized);
         Assert.Equal("PositiveEmaStack", result.Attribution.DominantPositiveFactor);
         Assert.Equal("OverextensionRisk", result.Attribution.DominantNegativeFactor);
     }

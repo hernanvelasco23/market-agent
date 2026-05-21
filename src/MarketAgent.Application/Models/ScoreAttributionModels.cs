@@ -3,12 +3,22 @@ namespace MarketAgent.Application.Models;
 public sealed record ScoreAttribution(
     decimal BaseScore,
     decimal UncappedScore,
+    decimal RawScore,
+    decimal CalibratedScore,
     decimal FinalScore,
     bool WasCapped,
+    bool WasNormalized,
+    string? CalibrationReason,
     string? DominantPositiveFactor,
     string? DominantNegativeFactor,
     IReadOnlyCollection<ScoreContribution> PositiveContributions,
     IReadOnlyCollection<ScoreContribution> NegativeContributions);
+
+public sealed record ScoreCalibrationResult(
+    decimal RawScore,
+    decimal CalibratedScore,
+    bool WasNormalized,
+    string? Reason);
 
 public sealed record ScoreContribution(
     string Factor,
@@ -38,6 +48,10 @@ public sealed record ScoreAttributionSnapshot(
 
 public sealed record ScoreAttributionDiagnostics(
     int TotalCount,
-    int CappedCount,
+    int CappedRawScoreCount,
     decimal? AverageUncappedScore,
-    decimal? HighestUncappedScore);
+    decimal? HighestUncappedScore,
+    decimal? AverageRawScore,
+    decimal? AverageCalibratedScore,
+    decimal? Top10RawScoreRange,
+    decimal? Top10CalibratedScoreRange);
