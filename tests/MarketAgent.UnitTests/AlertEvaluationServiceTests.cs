@@ -183,6 +183,23 @@ public sealed class AlertEvaluationServiceTests
             throw new NotSupportedException();
         }
 
+        public Task<IReadOnlyCollection<AlertEventItem>> GetPendingDeliveryAsync(
+            int limit,
+            bool includeFailed,
+            DateTime? sinceUtc,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<int> CountStalePendingDeliveryAsync(
+            bool includeFailed,
+            DateTime sinceUtc,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task<IReadOnlySet<string>> GetExistingAlertKeysAsync(
             IReadOnlyCollection<AlertEvaluationCandidate> candidates,
             string alertType,
@@ -199,6 +216,14 @@ public sealed class AlertEvaluationServiceTests
             _existingKeys.Add(CreateAlertKey(alertEvent.SignalSnapshotId, alertEvent.AlertType));
 
             return Task.CompletedTask;
+        }
+
+        public Task UpdateDeliveryStatusAsync(
+            IReadOnlyCollection<Guid> alertEventIds,
+            string deliveryStatus,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 

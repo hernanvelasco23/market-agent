@@ -7,6 +7,7 @@ using MarketAgent.Application.PriceIngestion;
 using MarketAgent.Application.Signals;
 using MarketAgent.Application.SystemCycle;
 using MarketAgent.Infrastructure.AI;
+using MarketAgent.Infrastructure.Email;
 using MarketAgent.Infrastructure.Indicators;
 using MarketAgent.Infrastructure.MarketData;
 using MarketAgent.Infrastructure.Persistence;
@@ -62,8 +63,12 @@ builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePr
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
 builder.Services.AddScoped<IScoreAttributionService, ScoreAttributionService>();
 builder.Services.AddScoped<IManualSystemCycleService, ManualSystemCycleService>();
+builder.Services.AddScoped<IEmailAlertDeliveryService, EmailAlertDeliveryService>();
+builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
+builder.Services.AddSingleton(_ =>
+    builder.Configuration.GetSection(EmailDeliveryOptions.SectionName).Get<EmailDeliveryOptions>() ?? new EmailDeliveryOptions());
 builder.Services.Configure<HistoricalMarketDataOptions>(
     builder.Configuration.GetSection(HistoricalMarketDataOptions.SectionName));
 builder.Services.Configure<AzureOpenAIOptions>(
@@ -168,6 +173,22 @@ app.MapPost(
     {
         var result = await manualSystemCycleService.RunAsync(
             new ManualSystemCycleRequest(outcomeLimit, alertLimit),
+            cancellationToken);
+
+        return Results.Ok(result);
+    });
+
+app.MapPost(
+    "/api/alerts/deliver/email",
+    async (
+        IEmailAlertDeliveryService emailAlertDeliveryService,
+        int? limit,
+        bool? retryFailed,
+        int? sinceMinutes,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await emailAlertDeliveryService.DeliverAsync(
+            new EmailAlertDeliveryRequest(limit, retryFailed ?? false, sinceMinutes),
             cancellationToken);
 
         return Results.Ok(result);
