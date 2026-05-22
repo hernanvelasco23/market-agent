@@ -23,6 +23,7 @@ import { SignalOutcomeSummaryPanel } from "./components/SignalOutcomeSummaryPane
 import { SignalPerformancePreviewPanel } from "./components/SignalPerformancePreviewPanel";
 import { SetupPerformancePanel } from "./components/SetupPerformancePanel";
 import { Sparkline } from "./components/Sparkline";
+import { TopProfitOpportunitiesPanel } from "./components/TopProfitOpportunitiesPanel";
 import { WatchlistSelector } from "./components/WatchlistSelector";
 import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasActiveSignalFilters } from "./signalFilters";
 import type {
@@ -334,6 +335,8 @@ export function App() {
         <SignalGroup title="Watchlist Pullbacks" tone="watch" icon={<Search size={17} />} signals={watchlistPullbacks} onSelect={setSelectedSymbol} />
         <SignalGroup title="Top Risks" tone="risk" icon={<ShieldAlert size={17} />} signals={topRisks} onSelect={setSelectedSymbol} />
       </section>
+
+      <TopProfitOpportunitiesPanel signals={watchlistSignals} onSelectSymbol={setSelectedSymbol} />
 
       <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
 
