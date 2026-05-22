@@ -3,6 +3,8 @@ namespace MarketAgent.Application.Models;
 public static class AlertDeliveryStatuses
 {
     public const string InternalOnly = "InternalOnly";
+    public const string Delivered = "Delivered";
+    public const string DeliveryFailed = "DeliveryFailed";
 }
 
 public static class AlertTypes
@@ -53,7 +55,14 @@ public sealed record AlertEventItem(
     string Title,
     string Message,
     string ReasonJson,
-    string DeliveryStatus);
+    string DeliveryStatus,
+    decimal? Entry = null,
+    decimal? TakeProfit1 = null,
+    decimal? TakeProfit2 = null,
+    decimal? TakeProfit3 = null,
+    decimal? RiskReward1 = null,
+    decimal? RiskReward2 = null,
+    decimal? RiskReward3 = null);
 
 public sealed record AlertEventQuery(int? Limit);
 
@@ -65,3 +74,31 @@ public sealed record AlertEvaluationResult(
     int SkippedDuplicateCount,
     int SkippedRuleCount,
     int FailedCount);
+
+public sealed record EmailAlertDeliveryRequest(
+    int? Limit,
+    bool RetryFailed,
+    int? SinceMinutes);
+
+public sealed record EmailAlertDeliveryResult(
+    DateTime StartedAtUtc,
+    DateTime FinishedAtUtc,
+    int AttemptedCount,
+    int DeliveredCount,
+    int FailedCount,
+    int SkippedCount,
+    int StaleSkippedCount,
+    int DuplicateSkippedCount,
+    IReadOnlyCollection<EmailAlertDeliveryFailure> Failures);
+
+public sealed record EmailAlertDeliveryFailure(
+    Guid AlertEventId,
+    string Symbol,
+    string Message);
+
+public sealed record EmailMessage(
+    string FromEmail,
+    string FromName,
+    string ToEmail,
+    string Subject,
+    string HtmlBody);

@@ -36,8 +36,80 @@ public sealed class EfAlertEventRepository : IAlertEventRepository
                 alertEvent.Title,
                 alertEvent.Message,
                 alertEvent.ReasonJson,
-                alertEvent.DeliveryStatus))
+                alertEvent.DeliveryStatus,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null))
             .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<AlertEventItem>> GetPendingDeliveryAsync(
+        int limit,
+        bool includeFailed,
+        DateTime? sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.AlertEvents
+            .AsNoTracking()
+            .Where(alertEvent =>
+                alertEvent.DeliveryStatus == AlertDeliveryStatuses.InternalOnly ||
+                (includeFailed && alertEvent.DeliveryStatus == AlertDeliveryStatuses.DeliveryFailed));
+
+        if (sinceUtc is not null)
+        {
+            query = query.Where(alertEvent => alertEvent.CreatedAtUtc >= sinceUtc.Value);
+        }
+
+        return await query
+            .OrderByDescending(alertEvent => alertEvent.Score)
+            .ThenByDescending(alertEvent =>
+                alertEvent.Confidence == "High" ? 3 :
+                alertEvent.Confidence == "Medium" ? 2 :
+                alertEvent.Confidence == "Low" ? 1 : 0)
+            .ThenByDescending(alertEvent => alertEvent.CreatedAtUtc)
+            .Take(limit)
+            .Select(alertEvent => new AlertEventItem(
+                alertEvent.Id,
+                alertEvent.CreatedAtUtc,
+                alertEvent.SignalSnapshotId,
+                alertEvent.RunId,
+                alertEvent.Symbol,
+                alertEvent.Setup,
+                alertEvent.Action,
+                alertEvent.Score,
+                alertEvent.Confidence,
+                alertEvent.PriceAtSignal,
+                alertEvent.AlertType,
+                alertEvent.Title,
+                alertEvent.Message,
+                alertEvent.ReasonJson,
+                alertEvent.DeliveryStatus,
+                alertEvent.SignalSnapshot == null ? null : alertEvent.SignalSnapshot.Entry,
+                null,
+                alertEvent.SignalSnapshot == null ? null : alertEvent.SignalSnapshot.Target,
+                null,
+                null,
+                null,
+                null))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<int> CountStalePendingDeliveryAsync(
+        bool includeFailed,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.AlertEvents
+            .AsNoTracking()
+            .Where(alertEvent =>
+                alertEvent.CreatedAtUtc < sinceUtc &&
+                (alertEvent.DeliveryStatus == AlertDeliveryStatuses.InternalOnly ||
+                    (includeFailed && alertEvent.DeliveryStatus == AlertDeliveryStatuses.DeliveryFailed)))
+            .CountAsync(cancellationToken);
     }
 
     public async Task<IReadOnlySet<string>> GetExistingAlertKeysAsync(
@@ -71,6 +143,23 @@ public sealed class EfAlertEventRepository : IAlertEventRepository
     {
         await _dbContext.AlertEvents.AddAsync(ToEntity(alertEvent), cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateDeliveryStatusAsync(
+        IReadOnlyCollection<Guid> alertEventIds,
+        string deliveryStatus,
+        CancellationToken cancellationToken = default)
+    {
+        if (alertEventIds.Count == 0)
+        {
+            return;
+        }
+
+        await _dbContext.AlertEvents
+            .Where(alertEvent => alertEventIds.Contains(alertEvent.Id))
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(alertEvent => alertEvent.DeliveryStatus, deliveryStatus),
+                cancellationToken);
     }
 
     private static PersistedAlertEvent ToEntity(AlertEventRecord alertEvent)

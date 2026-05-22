@@ -22,6 +22,27 @@ public sealed class NoOpAlertEventRepository : IAlertEventRepository
         return Task.FromResult<IReadOnlyCollection<AlertEventItem>>([]);
     }
 
+    public Task<IReadOnlyCollection<AlertEventItem>> GetPendingDeliveryAsync(
+        int limit,
+        bool includeFailed,
+        DateTime? sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult<IReadOnlyCollection<AlertEventItem>>([]);
+    }
+
+    public Task<int> CountStalePendingDeliveryAsync(
+        bool includeFailed,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(0);
+    }
+
     public Task<IReadOnlySet<string>> GetExistingAlertKeysAsync(
         IReadOnlyCollection<AlertEvaluationCandidate> candidates,
         string alertType,
@@ -42,6 +63,16 @@ public sealed class NoOpAlertEventRepository : IAlertEventRepository
             "Alert event persistence is disabled; skipped alert {AlertType} for signal snapshot {SignalSnapshotId}.",
             alertEvent.AlertType,
             alertEvent.SignalSnapshotId);
+
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateDeliveryStatusAsync(
+        IReadOnlyCollection<Guid> alertEventIds,
+        string deliveryStatus,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
 
         return Task.CompletedTask;
     }
