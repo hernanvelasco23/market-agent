@@ -117,17 +117,40 @@ public sealed class ManualSystemCycleServiceTests
         Assert.Equal(44, alertService.LastLimit);
     }
 
+    [Fact]
+    public async Task RunAsync_RejectsOverlappingCycles_WithSharedGuard()
+    {
+        var calls = new List<string>();
+        var blockingIngestion = new BlockingPriceIngestionService(calls);
+        var firstService = CreateService(calls, priceIngestionService: blockingIngestion);
+        var secondService = CreateService(calls);
+
+        var firstRun = firstService.RunAsync(new ManualSystemCycleRequest(null, null));
+        await blockingIngestion.Started.Task;
+
+        var secondResult = await secondService.RunAsync(new ManualSystemCycleRequest(null, null));
+
+        blockingIngestion.Release();
+        var firstResult = await firstRun;
+
+        Assert.False(secondResult.OverallSuccess);
+        Assert.Equal(0, secondResult.ExecutedStepCount);
+        Assert.Equal("cycle", secondResult.FailedStepName);
+        Assert.True(firstResult.OverallSuccess);
+    }
+
     private static ManualSystemCycleService CreateService(
         List<string> calls,
         Exception? ingestionException = null,
         Exception? signalsException = null,
         Exception? outcomesException = null,
         Exception? alertsException = null,
+        IPriceIngestionService? priceIngestionService = null,
         RecordingSignalOutcomeService? outcomeService = null,
         RecordingAlertEvaluationService? alertService = null)
     {
         return new ManualSystemCycleService(
-            new RecordingPriceIngestionService(calls, ingestionException),
+            priceIngestionService ?? new RecordingPriceIngestionService(calls, ingestionException),
             new RecordingMarketSignalService(calls, signalsException),
             outcomeService ?? new RecordingSignalOutcomeService(calls, outcomesException),
             alertService ?? new RecordingAlertEvaluationService(calls, alertsException),
@@ -154,6 +177,33 @@ public sealed class ManualSystemCycleServiceTests
             }
 
             return Task.FromResult(new PriceIngestionResult(1, 1, 0, [], DateTime.UtcNow));
+        }
+    }
+
+    private sealed class BlockingPriceIngestionService : IPriceIngestionService
+    {
+        private readonly List<string> _calls;
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public BlockingPriceIngestionService(List<string> calls)
+        {
+            _calls = calls;
+        }
+
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<PriceIngestionResult> ExecuteAsync(CancellationToken cancellationToken = default)
+        {
+            _calls.Add("ingestion");
+            Started.SetResult();
+            await _release.Task.WaitAsync(cancellationToken);
+
+            return new PriceIngestionResult(1, 1, 0, [], DateTime.UtcNow);
+        }
+
+        public void Release()
+        {
+            _release.SetResult();
         }
     }
 
