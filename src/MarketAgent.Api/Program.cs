@@ -1,3 +1,4 @@
+using MarketAgent.Api.Services;
 using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Alerts;
 using MarketAgent.Application.Briefing;
@@ -17,6 +18,11 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "MarketAgentFrontend";
 const string SqlServerConnectionStringName = "DefaultConnection";
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (builder.Environment.IsDevelopment() && allowedCorsOrigins.Length == 0)
+{
+    allowedCorsOrigins = ["http://localhost:5173", "https://localhost:5173"];
+}
 
 builder.Services.AddSingleton<IWatchlistProvider, StaticWatchlistProvider>();
 builder.Services.AddHttpClient<EquityMarketDataProvider>();
@@ -65,10 +71,15 @@ builder.Services.AddScoped<IScoreAttributionService, ScoreAttributionService>();
 builder.Services.AddScoped<IManualSystemCycleService, ManualSystemCycleService>();
 builder.Services.AddScoped<IEmailAlertDeliveryService, EmailAlertDeliveryService>();
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
+builder.Services.AddSingleton<IMarketHoursService, UsEquityMarketHoursService>();
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(RiskPositionOptions.SectionName).Get<RiskPositionOptions>() ?? new RiskPositionOptions());
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(EmailDeliveryOptions.SectionName).Get<EmailDeliveryOptions>() ?? new EmailDeliveryOptions());
+builder.Services.AddSingleton(_ =>
+    builder.Configuration.GetSection(MarketAgentSchedulerOptions.SectionName).Get<MarketAgentSchedulerOptions>() ?? new MarketAgentSchedulerOptions());
+builder.Services.AddSingleton<IMarketAgentCycleSchedulerRunner, MarketAgentCycleSchedulerRunner>();
+builder.Services.AddHostedService<MarketAgentCycleSchedulerService>();
 builder.Services.Configure<HistoricalMarketDataOptions>(
     builder.Configuration.GetSection(HistoricalMarketDataOptions.SectionName));
 builder.Services.Configure<AzureOpenAIOptions>(
@@ -78,18 +89,23 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(
         FrontendCorsPolicy,
-        policy => policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "https://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+        policy =>
+        {
+            if (allowedCorsOrigins.Length > 0)
+            {
+                policy
+                    .WithOrigins(allowedCorsOrigins)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            }
+        });
 });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+LogStartupConfiguration(app);
 
 if (app.Environment.IsDevelopment())
 {
@@ -99,7 +115,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-if (app.Environment.IsDevelopment())
+if (allowedCorsOrigins.Length > 0)
 {
     app.UseCors(FrontendCorsPolicy);
 }
@@ -192,6 +208,25 @@ app.MapPost(
             cancellationToken);
 
         return Results.Ok(result);
+    });
+
+app.MapGet(
+    "/api/system/status",
+    (
+        MarketAgentSchedulerOptions schedulerOptions,
+        EmailDeliveryOptions emailOptions,
+        IMarketAgentCycleSchedulerRunner schedulerRunner,
+        IWebHostEnvironment environment) =>
+    {
+        return Results.Ok(new
+        {
+            schedulerEnabled = schedulerOptions.Enabled,
+            intervalMinutes = schedulerOptions.GetSafeIntervalMinutes(),
+            marketHoursOnly = schedulerOptions.MarketHoursOnly,
+            emailConfigured = IsEmailDeliveryConfigured(emailOptions),
+            lastCycleRunUtc = schedulerRunner.LastCycleRunUtc,
+            environmentName = environment.EnvironmentName
+        });
     });
 
 app.MapGet(
@@ -300,3 +335,45 @@ app.MapGet(
     });
 
 app.Run();
+
+static void LogStartupConfiguration(WebApplication app)
+{
+    var schedulerOptions = app.Services.GetRequiredService<MarketAgentSchedulerOptions>();
+    var emailOptions = app.Services.GetRequiredService<EmailDeliveryOptions>();
+    var emailConfigured = IsEmailDeliveryConfigured(emailOptions);
+
+    app.Logger.LogInformation(
+        "MarketAgentScheduler config. Enabled: {Enabled}. IntervalMinutes: {IntervalMinutes}. RunEmailDelivery: {RunEmailDelivery}. MarketHoursOnly: {MarketHoursOnly}. RunOnStartup: {RunOnStartup}.",
+        schedulerOptions.Enabled,
+        schedulerOptions.GetSafeIntervalMinutes(),
+        schedulerOptions.RunEmailDelivery,
+        schedulerOptions.MarketHoursOnly,
+        schedulerOptions.RunOnStartup);
+
+    app.Logger.LogInformation(
+        "EmailDelivery config. SmtpHostConfigured: {SmtpHostConfigured}. ToEmailConfigured: {ToEmailConfigured}. FromEmailConfigured: {FromEmailConfigured}.",
+        !string.IsNullOrWhiteSpace(emailOptions.SmtpHost),
+        !string.IsNullOrWhiteSpace(emailOptions.ToEmail),
+        !string.IsNullOrWhiteSpace(emailOptions.FromEmail));
+
+    if (schedulerOptions.Enabled && schedulerOptions.IntervalMinutes <= 0)
+    {
+        app.Logger.LogWarning(
+            "MarketAgentScheduler interval is invalid ({IntervalMinutes}); effective interval is {EffectiveIntervalMinutes} minutes.",
+            schedulerOptions.IntervalMinutes,
+            schedulerOptions.GetSafeIntervalMinutes());
+    }
+
+    if (schedulerOptions.Enabled && schedulerOptions.RunEmailDelivery && !emailConfigured)
+    {
+        app.Logger.LogWarning("MarketAgentScheduler email delivery is enabled, but EmailDelivery SMTP configuration is incomplete.");
+    }
+}
+
+static bool IsEmailDeliveryConfigured(EmailDeliveryOptions options)
+{
+    return !string.IsNullOrWhiteSpace(options.SmtpHost)
+        && !string.IsNullOrWhiteSpace(options.ToEmail)
+        && !string.IsNullOrWhiteSpace(options.FromEmail)
+        && options.SmtpPort > 0;
+}

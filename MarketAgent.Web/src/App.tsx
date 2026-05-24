@@ -1,6 +1,6 @@
 import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles, TrendingUp, Zap } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSparklinePricesBySymbol,
   loadDashboard,
@@ -45,6 +45,8 @@ type Status = {
   tone: "idle" | "ok" | "warn" | "error";
 };
 
+const AUTO_REFRESH_INTERVAL_MS = 60_000;
+
 export function App() {
   const [briefing, setBriefing] = useState<BriefingResult | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
@@ -67,6 +69,8 @@ export function App() {
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
   const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
   const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const autoRefreshInFlight = useRef(false);
 
   const allSignals = briefing?.allSignals ?? [];
   const watchlists = useMemo(() => getAllWatchlists(customWatchlists), [customWatchlists]);
@@ -98,6 +102,14 @@ export function App() {
 
   useEffect(() => {
     refreshDashboard();
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refreshDashboardSilently();
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -145,10 +157,33 @@ export function App() {
 
   async function refreshDashboard() {
     await withAction("Refresh dashboard", async () => {
+      await loadDashboardData();
+    });
+  }
+
+  async function refreshDashboardSilently() {
+    if (autoRefreshInFlight.current) {
+      return;
+    }
+
+    autoRefreshInFlight.current = true;
+
+    try {
+      await loadDashboardData();
+    } catch (error) {
+      setStatus({
+        text: error instanceof Error ? error.message : "Auto-refresh failed",
+        tone: "error"
+      });
+    } finally {
+      autoRefreshInFlight.current = false;
+    }
+  }
+
+  async function loadDashboardData() {
       const state = await loadDashboard();
       setBriefing(state.briefing);
       setUsingMock(state.isMock);
-      setSelectedSymbol(state.briefing.allSignals[0]?.symbol ?? null);
       await Promise.all([
         refreshSparklines(),
         refreshPerformancePreview(),
@@ -156,10 +191,10 @@ export function App() {
         refreshSetupSummary(),
         refreshScoreBucketSummary()
       ]);
+      setLastUpdatedAt(new Date());
       if (state.isMock) {
         setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
       }
-    });
   }
 
   async function handleRunIngestion() {
@@ -315,6 +350,8 @@ export function App() {
 
       <section className="status-row">
         <span className={`status ${status.tone}`}>{status.text}</span>
+        <span className="status ok">Auto-refresh: ON</span>
+        {lastUpdatedAt ? <span className="timestamp">Last updated {formatDateTime(lastUpdatedAt)}</span> : null}
         {usingMock ? <span className="status warn">Mock fallback</span> : null}
         {briefing ? <span className="timestamp">Generated {formatDate(briefing.generatedAtUtc)}</span> : null}
         {ingestion ? (
@@ -646,6 +683,13 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function formatDateTime(value: Date) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(value);
 }
 
 function formatMoney(value?: number | null) {
