@@ -34,14 +34,14 @@ function deriveMomentumBreakoutAlert(signal: DashboardSignal): DashboardAlert | 
 
   return createAlert(signal, {
     type: "momentum-breakout",
-    title: "Momentum breakout watch",
-    description: "High score with strong RS and elevated RVOL. Range position is used as the near-high proxy when available.",
+    title: "Breakout de momentum en observación",
+    description: "Score alto con RS fuerte y RVOL elevado. La posición dentro del rango se usa como proxy de cercanía a máximos cuando está disponible.",
     severity: "opportunity",
     metrics: [
       metric("Score", formatNumber(signal.score), "positive"),
       metric("RS vs SPY", formatPercent(rs), "positive"),
       metric("RVOL", formatMultiplier(rvol), rvol >= 3 ? "positive" : "neutral"),
-      optionalMetric("Range pos.", rangePosition, formatPercent, "neutral")
+      optionalMetric("Pos. rango", rangePosition, formatPercent, "neutral")
     ]
   });
 }
@@ -53,16 +53,16 @@ function deriveOpeningRedReversalAlert(signal: DashboardSignal): DashboardAlert 
 
   return createAlert(signal, {
     type: "opening-red-reversal",
-    title: signal.reclaimPreviousClose ? "Opening red reversal reclaimed previous close" : "Opening red reversal",
+    title: signal.reclaimPreviousClose ? "Reversión desde apertura roja con recuperación del cierre previo" : "Reversión desde apertura roja",
     description: signal.reclaimPreviousClose
-      ? "Opened red, recovered above the open, and reclaimed the previous close."
-      : "Opened red, recovered from the intraday low, and reclaimed the open.",
+      ? "Abrió en rojo, recuperó sobre la apertura y recuperó el cierre previo."
+      : "Abrió en rojo, recuperó desde el mínimo intradiario y recuperó la apertura.",
     severity: signal.reclaimPreviousClose ? "opportunity" : "info",
     metrics: [
-      optionalMetric("Open gap", signal.openGapPercent, formatPercent, signal.openGapPercent != null && signal.openGapPercent < 0 ? "warning" : "neutral"),
-      optionalMetric("Recovery", signal.openingRedReversalRecoveryFromLowPercent, formatPercent, "positive"),
-      metric("Reclaim open", signal.reclaimOpen ? "Yes" : "No", signal.reclaimOpen ? "positive" : "neutral"),
-      metric("Prev close", signal.reclaimPreviousClose ? "Reclaimed" : "Not yet", signal.reclaimPreviousClose ? "positive" : "neutral"),
+      optionalMetric("Gap apertura", signal.openGapPercent, formatPercent, signal.openGapPercent != null && signal.openGapPercent < 0 ? "warning" : "neutral"),
+      optionalMetric("Recuperación", signal.openingRedReversalRecoveryFromLowPercent, formatPercent, "positive"),
+      metric("Recupera apertura", signal.reclaimOpen ? "Sí" : "No", signal.reclaimOpen ? "positive" : "neutral"),
+      metric("Cierre previo", signal.reclaimPreviousClose ? "Recuperado" : "Pendiente", signal.reclaimPreviousClose ? "positive" : "neutral"),
       optionalMetric("RVOL", signal.relativeVolume, formatMultiplier, signal.relativeVolume != null && signal.relativeVolume >= 2 ? "positive" : "neutral")
     ]
   });
@@ -78,11 +78,11 @@ function deriveEmaReclaimAlert(signal: DashboardSignal): DashboardAlert | null {
 
   return createAlert(signal, {
     type: "ema-reclaim",
-    title: "EMA20 reclaim context",
-    description: "Price is above EMA20 and the existing signal text indicates prior weakness or recovery.",
+    title: "Recuperación sobre EMA20",
+    description: "El precio está sobre EMA20 y la señal muestra debilidad previa o recuperación.",
     severity: "info",
     metrics: [
-      metric("Price", formatMoney(price), "positive"),
+      metric("Precio", formatMoney(price), "positive"),
       metric("EMA20", formatMoney(ema20), "neutral"),
       optionalMetric("EXT", getEma20Extension(signal), formatPercent, "neutral")
     ]
@@ -98,8 +98,8 @@ function deriveOverextendedWarningAlert(signal: DashboardSignal): DashboardAlert
 
   return createAlert(signal, {
     type: "overextended-warning",
-    title: "Overextended above EMA20",
-    description: "EMA20 extension is above the warning threshold. Momentum may still work, but pullback risk is elevated.",
+    title: "Extendida sobre EMA20",
+    description: "La extensión sobre EMA20 supera el umbral de atención. El momentum puede seguir, pero aumenta el riesgo de pullback.",
     severity: "warning",
     metrics: [
       metric("EXT", formatPercent(extension), extension > 15 ? "risk" : "warning"),
@@ -122,13 +122,13 @@ function deriveMomentumFailureAlert(signal: DashboardSignal): DashboardAlert | n
 
   return createAlert(signal, {
     type: "momentum-failure",
-    title: "Momentum failure risk",
-    description: "Current signal data shows weak score, risk action, or negative RS with price below EMA20.",
+    title: "Riesgo de falla de momentum",
+    description: "La señal muestra score débil, acción de riesgo o RS negativa con precio debajo de EMA20.",
     severity: "risk",
     metrics: [
       metric("Score", formatNumber(signal.score), signal.score < LOW_SCORE_RISK ? "risk" : "neutral"),
       optionalMetric("RS vs SPY", rs, formatPercent, rs != null && rs < 0 ? "risk" : "neutral"),
-      optionalMetric("Price", price, formatMoney, price != null && ema20 != null && price < ema20 ? "risk" : "neutral"),
+      optionalMetric("Precio", price, formatMoney, price != null && ema20 != null && price < ema20 ? "risk" : "neutral"),
       optionalMetric("EMA20", ema20, formatMoney, "neutral")
     ]
   });

@@ -116,6 +116,8 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
 
         promptBuilder.AppendLine("You are Market Agent.");
         promptBuilder.AppendLine("Use the calculated MarketSignal results as the primary input, with MarketSnapshot data as supporting context.");
+        promptBuilder.AppendLine("Write all user-facing summaries in natural Spanish for Argentina-market and CEDEAR investors.");
+        promptBuilder.AppendLine("Keep common trading terms such as setup, pullback, breakout, upside, stop, take profit, score, momentum, risk-on, and risk-off in English when natural.");
         promptBuilder.AppendLine("Explain only calculated data. Do not invent prices, indicators, RSI values, targets, stops, scores, or recommendations.");
         promptBuilder.AppendLine("Explain calculated risk fields such as ATR stop, TP1/TP2/TP3, risk/reward, suggested position size, and scoreBreakdown only when provided.");
         promptBuilder.AppendLine("Explain calculated behavior fields such as recovery strength, gap recovery, institutional absorption, trend slope, extension risk, and momentum continuation only when those fields are present.");
@@ -140,15 +142,15 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
         promptBuilder.AppendLine("Calculated signal sections:");
         AppendSignalSection(
             promptBuilder,
-            "Top opportunities: bullish signals. Score >= 60 near the session high has Medium confidence, Intraday timeframe, and Candidate action.",
+            "Mejores oportunidades: señales alcistas. Score >= 60 cerca de máximos de la rueda tiene confianza Medium, timeframe Intraday y acción Candidate.",
             BuildTopOpportunities(signals));
         AppendSignalSection(
             promptBuilder,
-            "Watchlist pullbacks: pullback setups with score between 40 and 55. Confidence is Low, timeframe is WatchOnly, and action is Watch for confirmation.",
+            "Pullbacks en seguimiento: setups de pullback con score entre 40 y 55. Confianza Low, timeframe WatchOnly y acción Watch for confirmation.",
             BuildWatchlistPullbacks(signals));
         AppendRiskSection(
             promptBuilder,
-            "Top risks: weak or risky assets with score < 40. Confidence is Low, timeframe is WatchOnly, and action is Avoid / high risk.",
+            "Riesgos principales: activos débiles o riesgosos con score < 40. Confianza Low, timeframe WatchOnly y acción Avoid / high risk.",
             BuildTopRisks(signals));
 
         promptBuilder.AppendLine();

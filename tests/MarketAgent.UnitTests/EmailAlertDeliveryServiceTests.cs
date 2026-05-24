@@ -265,19 +265,19 @@ public sealed class EmailAlertDeliveryServiceTests
             ValidOptions(),
             DateTime.SpecifyKind(new DateTime(2026, 5, 22, 12, 0, 0), DateTimeKind.Utc));
 
-        Assert.Equal("[MarketAgent] 2 New Alerts - NVDA, TSLA", message.Subject);
-        Assert.Contains("MarketAgent Alert Digest", message.HtmlBody);
+        Assert.Equal("[MarketAgent] 2 alertas nuevas - NVDA, TSLA", message.Subject);
+        Assert.Contains("Resumen de alertas MarketAgent", message.HtmlBody);
         Assert.Contains("NVDA", message.HtmlBody);
         Assert.Contains("MomentumContinuation", message.HtmlBody);
         Assert.Contains("93", message.HtmlBody);
-        Assert.Contains("HIGH CONFIDENCE", message.HtmlBody);
+        Assert.Contains("ALTA CONFIANZA", message.HtmlBody);
         Assert.Contains("123.45", message.HtmlBody);
         Assert.Contains("Alert title", message.HtmlBody);
         Assert.Contains("Alert message", message.HtmlBody);
-        Assert.Contains("setup avg 15m", message.HtmlBody);
+        Assert.Contains("promedio setup 15m", message.HtmlBody);
         Assert.Contains("+21.05%", message.HtmlBody);
-        Assert.Contains("HIGH UPSIDE", message.HtmlBody);
-        Assert.Contains("Best Upside", message.HtmlBody);
+        Assert.Contains("UPSIDE ALTO", message.HtmlBody);
+        Assert.Contains("Mejor upside", message.HtmlBody);
         Assert.DoesNotContain("ruleDecisions", message.HtmlBody);
     }
 
@@ -289,7 +289,7 @@ public sealed class EmailAlertDeliveryServiceTests
             ValidOptions(),
             DateTime.UtcNow);
 
-        Assert.Equal("[MarketAgent] 1 New Alert - NVDA", message.Subject);
+        Assert.Equal("[MarketAgent] 1 alerta nueva - NVDA", message.Subject);
     }
 
     private static EmailAlertDeliveryService CreateService(

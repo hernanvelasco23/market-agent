@@ -28,8 +28,8 @@ public static class AlertEmailTemplateBuilder
             .Take(3)
             .ToArray();
         var subject = alerts.Count == 1
-            ? $"[MarketAgent] 1 New Alert - {topSymbols.FirstOrDefault() ?? "Market"}"
-            : $"[MarketAgent] {alerts.Count} New Alerts - {string.Join(", ", topSymbols)}";
+            ? $"[MarketAgent] 1 alerta nueva - {topSymbols.FirstOrDefault() ?? "Mercado"}"
+            : $"[MarketAgent] {alerts.Count} alertas nuevas - {string.Join(", ", topSymbols)}";
 
         return new EmailMessage(
             options.FromEmail ?? string.Empty,
@@ -103,23 +103,23 @@ public static class AlertEmailTemplateBuilder
             <html>
             <head>
               <meta charset="utf-8">
-              <title>MarketAgent Alert Digest</title>
+              <title>Resumen de alertas MarketAgent</title>
             </head>
             <body style="margin:0;padding:0;background:#090d13;color:#e5eefc;font-family:Arial,Helvetica,sans-serif;">
               <div style="padding:24px;background:#090d13;">
                 <div style="max-width:1180px;margin:0 auto;border:1px solid #263346;border-radius:12px;background:#0d131d;overflow:hidden;">
                   <div style="padding:22px 24px;background:#101722;border-bottom:1px solid #263346;">
                     <div style="color:#8aa0bd;font-size:12px;font-weight:700;text-transform:uppercase;">MarketAgent</div>
-                    <h1 style="margin:6px 0 0;color:#f8fbff;font-size:26px;line-height:1.15;">MarketAgent Alert Digest</h1>
-                    <p style="margin:8px 0 0;color:#9fb0c9;font-size:14px;">Generated {{Escape(generatedAtUtc.ToString("u", CultureInfo.InvariantCulture))}}</p>
+                    <h1 style="margin:6px 0 0;color:#f8fbff;font-size:26px;line-height:1.15;">Resumen de alertas MarketAgent</h1>
+                    <p style="margin:8px 0 0;color:#9fb0c9;font-size:14px;">Generado {{Escape(generatedAtUtc.ToString("u", CultureInfo.InvariantCulture))}}</p>
                   </div>
                   <div style="padding:18px 24px;border-bottom:1px solid #263346;">
                     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
                       <tr>
-                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Alerts</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{alerts.Count}}</strong></td>
-                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Top Candidate</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{Escape(topAlert?.Symbol ?? "n/a")}}</strong></td>
-                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Highest Score</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{highestScore}}</strong></td>
-                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Best Upside</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{Escape(bestUpsideText)}}</strong></td>
+                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Alertas</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{alerts.Count}}</strong></td>
+                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Mejor candidato</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{Escape(topAlert?.Symbol ?? "n/a")}}</strong></td>
+                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Score más alto</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{highestScore}}</strong></td>
+                        <td style="padding:10px 12px;border:1px solid #263346;background:#101722;border-radius:8px;"><span style="display:block;color:#8aa0bd;font-size:11px;font-weight:700;text-transform:uppercase;">Mejor upside</span><strong style="display:block;margin-top:4px;color:#f8fbff;font-size:18px;">{{Escape(bestUpsideText)}}</strong></td>
                       </tr>
                     </table>
                   </div>
@@ -127,18 +127,18 @@ public static class AlertEmailTemplateBuilder
                     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px;">
                       <thead>
                         <tr>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Symbol</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Símbolo</th>
                           <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Setup</th>
                           <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Score</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Confidence</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Price</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Confianza</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Precio</th>
                           <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Upside</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Entry</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Entrada</th>
                           <th style="padding:9px 8px;color:#9fb0c9;text-align:right;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">TP</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Title</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Message</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Reason</th>
-                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Created UTC</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Título</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Mensaje</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Motivo</th>
+                          <th style="padding:9px 8px;color:#9fb0c9;text-align:left;border-bottom:1px solid #263346;font-size:11px;text-transform:uppercase;">Creada UTC</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -157,12 +157,12 @@ public static class AlertEmailTemplateBuilder
     {
         if (confidence.Equals("High", StringComparison.OrdinalIgnoreCase))
         {
-            return """<span style="display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;color:#86efac;background:#12351f;">HIGH CONFIDENCE</span>""";
+            return """<span style="display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;color:#86efac;background:#12351f;">ALTA CONFIANZA</span>""";
         }
 
         if (confidence.Equals("Medium", StringComparison.OrdinalIgnoreCase))
         {
-            return """<span style="display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;color:#fde68a;background:#342c12;">MEDIUM CONFIDENCE</span>""";
+            return """<span style="display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap;color:#fde68a;background:#342c12;">CONFIANZA MEDIA</span>""";
         }
 
         return Escape(confidence);
@@ -172,12 +172,12 @@ public static class AlertEmailTemplateBuilder
     {
         if (potentialUpsidePct is >= 20m)
         {
-            return """ <span style="display:inline-block;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:700;white-space:nowrap;color:#86efac;background:#12351f;">HIGH UPSIDE</span>""";
+            return """ <span style="display:inline-block;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:700;white-space:nowrap;color:#86efac;background:#12351f;">UPSIDE ALTO</span>""";
         }
 
         if (potentialUpsidePct is >= 10m)
         {
-            return """ <span style="display:inline-block;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:700;white-space:nowrap;color:#99f6e4;background:#143235;">GOOD UPSIDE</span>""";
+            return """ <span style="display:inline-block;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:700;white-space:nowrap;color:#99f6e4;background:#143235;">BUEN UPSIDE</span>""";
         }
 
         return string.Empty;
@@ -196,16 +196,16 @@ public static class AlertEmailTemplateBuilder
             var root = document.RootElement;
             var parts = new List<string>();
 
-            AddDecimal(parts, root, "setupAverageReturn15m", "setup avg 15m");
-            AddDecimal(parts, root, "minimumScore", "score threshold");
-            AddString(parts, root, "confidence", "confidence");
+            AddDecimal(parts, root, "setupAverageReturn15m", "promedio setup 15m");
+            AddDecimal(parts, root, "minimumScore", "umbral score");
+            AddString(parts, root, "confidence", "confianza");
 
             if (root.TryGetProperty("ruleDecisions", out var ruleDecisions) &&
                 ruleDecisions.ValueKind == JsonValueKind.Object &&
                 ruleDecisions.TryGetProperty("meetsSetupPerformance", out var meetsSetupPerformance) &&
                 (meetsSetupPerformance.ValueKind == JsonValueKind.True || meetsSetupPerformance.ValueKind == JsonValueKind.False))
             {
-                parts.Add($"setup performance: {meetsSetupPerformance.GetBoolean()}");
+                parts.Add($"performance setup: {meetsSetupPerformance.GetBoolean()}");
             }
 
             return string.Join("; ", parts.Take(4));

@@ -14,32 +14,32 @@ export function SignalOutcomeSummaryPanel({
     <section className="card performance-preview outcome-summary">
       <div className="card-title">
         <Activity size={17} />
-        <span>Signal Outcomes</span>
-        {summary ? <b>{summary.pendingCount} pending</b> : null}
+        <span>Resultados de señales</span>
+        {summary ? <b>{summary.pendingCount} pendientes</b> : null}
       </div>
 
       <p className="performance-note">
-        Persisted signal outcomes from emitted signals. Partial returns update before 1D outcomes close.
+        Resultados persistidos de señales emitidas. Los retornos parciales se actualizan antes del cierre a 1D.
       </p>
 
       {loading ? (
         <div className="performance-empty neutral">
           <Activity size={16} />
-          <span>Loading outcome summary...</span>
+          <span>Cargando resumen de resultados...</span>
         </div>
       ) : null}
 
       {unavailable ? (
         <div className="performance-empty">
           <AlertTriangle size={16} />
-          <span>Outcome summary unavailable. The dashboard can still be used normally.</span>
+          <span>Resumen de resultados no disponible. El panel puede usarse normalmente.</span>
         </div>
       ) : null}
 
       {!loading && !unavailable && summary?.totalCount === 0 ? (
         <div className="performance-empty neutral">
           <Activity size={16} />
-          <span>No persisted outcomes yet. Run signals, ingestion, and outcome evaluation to populate this section.</span>
+          <span>Todavía no hay resultados persistidos. Generá señales, ingesta datos y evaluá outcomes para poblar esta sección.</span>
         </div>
       ) : null}
 
@@ -47,44 +47,44 @@ export function SignalOutcomeSummaryPanel({
         <div className="performance-grid outcome-summary-grid">
           <article className="performance-item">
             <div className="performance-item-header">
-              <strong>Coverage</strong>
+              <strong>Cobertura</strong>
               <span>{formatCount(summary.totalCount)} total</span>
             </div>
             <div className="performance-values">
-              <OutcomeMetric label="Pending" value={summary.pendingCount} />
-              <OutcomeMetric label="15m Count" value={summary.countWith15m} />
-              <OutcomeMetric label="1h Count" value={summary.countWith1h} />
+              <OutcomeMetric label="Pendientes" value={summary.pendingCount} />
+              <OutcomeMetric label="Cant. 15m" value={summary.countWith15m} />
+              <OutcomeMetric label="Cant. 1h" value={summary.countWith1h} />
             </div>
           </article>
 
           <article className="performance-item">
             <div className="performance-item-header">
-              <strong>Average Return</strong>
-              <span>partial</span>
+              <strong>Retorno promedio</strong>
+              <span>parcial</span>
             </div>
             <div className="performance-values">
-              <OutcomeMetric label="Avg 15m" value={summary.averageReturn15m} suffix="%" tone />
-              <OutcomeMetric label="Avg 1h" value={summary.averageReturn1h} suffix="%" tone />
+              <OutcomeMetric label="Prom. 15m" value={summary.averageReturn15m} suffix="%" tone />
+              <OutcomeMetric label="Prom. 1h" value={summary.averageReturn1h} suffix="%" tone />
             </div>
           </article>
 
           <article className="performance-item">
             <div className="performance-item-header">
-              <strong>Best 15m</strong>
+              <strong>Mejor 15m</strong>
               <span>{summary.best15mSymbol ?? "n/a"}</span>
             </div>
             <div className="performance-values">
-              <OutcomeMetric label="Return" value={summary.best15mReturnPercent} suffix="%" tone />
+              <OutcomeMetric label="Retorno" value={summary.best15mReturnPercent} suffix="%" tone />
             </div>
           </article>
 
           <article className="performance-item">
             <div className="performance-item-header">
-              <strong>Worst 15m</strong>
+              <strong>Peor 15m</strong>
               <span>{summary.worst15mSymbol ?? "n/a"}</span>
             </div>
             <div className="performance-values">
-              <OutcomeMetric label="Return" value={summary.worst15mReturnPercent} suffix="%" tone />
+              <OutcomeMetric label="Retorno" value={summary.worst15mReturnPercent} suffix="%" tone />
             </div>
           </article>
         </div>

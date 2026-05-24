@@ -28,23 +28,23 @@ export function SignalFilterBar({
       <div className="filter-title">
         <div className="card-title">
           <SlidersHorizontal size={17} />
-          <span>Signal Filters</span>
+          <span>Filtros de señales</span>
           <b>{visibleCount}/{totalCount}</b>
         </div>
         {active ? (
           <button className="filter-reset" type="button" onClick={onReset}>
             <RotateCcw size={14} />
-            <span>Clear filters</span>
+            <span>Limpiar filtros</span>
           </button>
         ) : null}
       </div>
 
       <div className="filter-summary">
-        <span>{totalCount === 0 ? "No signals loaded" : `Showing ${visibleCount} of ${totalCount} signals`}</span>
+        <span>{totalCount === 0 ? "Sin señales cargadas" : `Mostrando ${visibleCount} de ${totalCount} señales`}</span>
         {summaryItems.map((item) => (
           <span key={item}>{item}</span>
         ))}
-        <span>Sort: {sortLabel}</span>
+        <span>Orden: {sortLabel}</span>
       </div>
 
       <div className="filter-controls">
@@ -54,7 +54,7 @@ export function SignalFilterBar({
             value={filters.setupType}
             onChange={(event) => onChange({ ...filters, setupType: event.target.value })}
           >
-            <option value="all">All setups</option>
+            <option value="all">Todos los setups</option>
             {setupTypes.map((setupType) => (
               <option key={setupType} value={setupType}>{setupType}</option>
             ))}
@@ -86,15 +86,15 @@ export function SignalFilterBar({
         />
 
         <div className="filter-chip-group">
-          <span>Focus</span>
-          <ToggleChip label="Risk" active={filters.riskOnly} onClick={() => onChange({ ...filters, riskOnly: !filters.riskOnly })} />
-          <ToggleChip label="Opportunity" active={filters.opportunityOnly} onClick={() => onChange({ ...filters, opportunityOnly: !filters.opportunityOnly })} />
-          <ToggleChip label="Extended" active={filters.overextendedOnly} onClick={() => onChange({ ...filters, overextendedOnly: !filters.overextendedOnly })} />
+          <span>Foco</span>
+          <ToggleChip label="Riesgo" active={filters.riskOnly} onClick={() => onChange({ ...filters, riskOnly: !filters.riskOnly })} />
+          <ToggleChip label="Oportunidad" active={filters.opportunityOnly} onClick={() => onChange({ ...filters, opportunityOnly: !filters.opportunityOnly })} />
+          <ToggleChip label="Extendida" active={filters.overextendedOnly} onClick={() => onChange({ ...filters, overextendedOnly: !filters.overextendedOnly })} />
           <ToggleChip label="ORR" active={filters.openingRedReversalOnly} onClick={() => onChange({ ...filters, openingRedReversalOnly: !filters.openingRedReversalOnly })} />
         </div>
 
         <label className="filter-select">
-          <span>Sort</span>
+          <span>Orden</span>
           <select
             value={filters.sortBy}
             onChange={(event) => onChange({ ...filters, sortBy: event.target.value as SignalSortKey })}
@@ -125,7 +125,7 @@ function ThresholdGroup({
   return (
     <div className="filter-chip-group">
       <span>{label}</span>
-      <ToggleChip label="Any" active={value == null} onClick={() => onChange(null)} />
+      <ToggleChip label="Cualquiera" active={value == null} onClick={() => onChange(null)} />
       {values.map((threshold) => (
         <ToggleChip
           key={threshold}
@@ -150,7 +150,7 @@ function getFilterSummaryItems(filters: SignalFilters) {
   const items: string[] = [];
 
   if (filters.setupType !== "all") {
-    items.push(`Filter: ${filters.setupType}`);
+    items.push(`Filtro: ${filters.setupType}`);
   }
 
   if (filters.minScore != null) {
@@ -166,19 +166,19 @@ function getFilterSummaryItems(filters: SignalFilters) {
   }
 
   if (filters.riskOnly) {
-    items.push("Risk only");
+    items.push("Solo riesgo");
   }
 
   if (filters.opportunityOnly) {
-    items.push("Opportunity only");
+    items.push("Solo oportunidad");
   }
 
   if (filters.overextendedOnly) {
-    items.push("Overextended only");
+    items.push("Solo extendidas");
   }
 
   if (filters.openingRedReversalOnly) {
-    items.push("ORR only");
+    items.push("Solo ORR");
   }
 
   return items;

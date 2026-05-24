@@ -1,5 +1,6 @@
 import { Target } from "lucide-react";
 import { getTopProfitOpportunities } from "../candidateProfitRanking";
+import { formatActionLabel, formatConfidenceLabel } from "../displayLabels";
 import type { DashboardSignal } from "../types";
 
 export function TopProfitOpportunitiesPanel({
@@ -15,14 +16,14 @@ export function TopProfitOpportunitiesPanel({
     <section className="card profit-ranking">
       <div className="card-title">
         <Target size={17} />
-        <span>Top Profit Opportunities</span>
+        <span>Mejores oportunidades por upside</span>
         <b>{opportunities.length}</b>
       </div>
 
       {opportunities.length === 0 ? (
         <div className="performance-empty neutral">
           <Target size={16} />
-          <span>No candidate signals with valid entry, target, and risk/reward are available.</span>
+          <span>No hay candidatos con entrada, objetivo y riesgo/beneficio válidos.</span>
         </div>
       ) : (
         <div className="profit-ranking-list">
@@ -38,7 +39,7 @@ export function TopProfitOpportunitiesPanel({
                 {opportunity.signal.setupType}
               </span>
               <span className="profit-score">{formatNumber(opportunity.signal.score)}</span>
-              <span className="profit-confidence">{opportunity.signal.confidence}</span>
+              <span className="profit-confidence">{formatConfidenceLabel(opportunity.signal.confidence)}</span>
               <span>{formatMoney(opportunity.entryPoint)}</span>
               <span>{formatMoney(opportunity.takeProfit)}</span>
               <span>{formatMoney(opportunity.stopLoss)}</span>
@@ -49,7 +50,7 @@ export function TopProfitOpportunitiesPanel({
                 ) : null}
               </span>
               <span>{formatNumber(opportunity.riskReward)}</span>
-              <span className="profit-action">{opportunity.signal.action}</span>
+              <span className="profit-action">{formatActionLabel(opportunity.signal.action)}</span>
             </button>
           ))}
         </div>
@@ -60,11 +61,11 @@ export function TopProfitOpportunitiesPanel({
 
 function getUpsideBadge(value: number) {
   if (value >= 20) {
-    return "High Upside";
+    return "Upside alto";
   }
 
   if (value >= 10) {
-    return "Good Upside";
+    return "Buen upside";
   }
 
   return null;

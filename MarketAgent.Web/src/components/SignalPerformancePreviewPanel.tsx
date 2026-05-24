@@ -12,18 +12,18 @@ export function SignalPerformancePreviewPanel({
     <section className="card performance-preview">
       <div className="card-title">
         <Activity size={17} />
-        <span>Signal Performance Preview</span>
+        <span>Preview de performance de señales</span>
         {preview ? <b>{preview.requestedDays}d</b> : null}
       </div>
 
       <p className="performance-note">
-        Reconstructed historical samples from OHLCV candles. Diagnostic only, not a prediction or trading advice.
+        Muestras históricas reconstruidas desde velas OHLCV. Solo diagnóstico; no es predicción ni recomendación.
       </p>
 
       {unavailable ? (
         <div className="performance-empty">
           <AlertTriangle size={16} />
-          <span>Performance preview unavailable. The dashboard can still be used normally.</span>
+          <span>Preview de performance no disponible. El panel puede usarse normalmente.</span>
         </div>
       ) : null}
 
@@ -34,19 +34,19 @@ export function SignalPerformancePreviewPanel({
               <article key={item.signalType} className="performance-item">
                 <div className="performance-item-header">
                   <strong>{formatSignalType(item.signalType)}</strong>
-                  <span>{item.sampleCount} samples</span>
+                  <span>{item.sampleCount} muestras</span>
                 </div>
                 <div className="performance-values">
-                  <PerformanceMetric label="Avg 1D" value={item.averageForwardReturn1Day} suffix="%" />
-                  <PerformanceMetric label="Avg 3D" value={item.averageForwardReturn3Day} suffix="%" />
-                  <PerformanceMetric label="Avg 5D" value={item.averageForwardReturn5Day} suffix="%" />
+                  <PerformanceMetric label="Prom. 1D" value={item.averageForwardReturn1Day} suffix="%" />
+                  <PerformanceMetric label="Prom. 3D" value={item.averageForwardReturn3Day} suffix="%" />
+                  <PerformanceMetric label="Prom. 5D" value={item.averageForwardReturn5Day} suffix="%" />
                   <PerformanceMetric label="Win 1D" value={item.winRate1Day} suffix="%" />
                   <PerformanceMetric label="Win 3D" value={item.winRate3Day} suffix="%" />
                   <PerformanceMetric label="Win 5D" value={item.winRate5Day} suffix="%" />
                 </div>
-                {item.isInsufficientData ? <span className="performance-warning">Insufficient data</span> : null}
+                {item.isInsufficientData ? <span className="performance-warning">Datos insuficientes</span> : null}
                 {!item.isInsufficientData && item.hasLowSampleWarning ? (
-                  <span className="performance-warning subtle">Low sample size</span>
+                  <span className="performance-warning subtle">Muestra chica</span>
                 ) : null}
               </article>
             ))}

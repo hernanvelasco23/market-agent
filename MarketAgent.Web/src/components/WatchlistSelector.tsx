@@ -74,13 +74,13 @@ export function WatchlistSelector({
           <b>{visibleCount}/{totalCount}</b>
         </div>
         <button className="filter-chip" type="button" onClick={handleNewCustom}>
-          New
+          Nueva
         </button>
       </div>
 
       <div className="watchlist-controls">
         <label className="filter-select watchlist-select">
-          <span>Active</span>
+          <span>Activa</span>
           <select value={activeWatchlistId} onChange={(event) => onSelect(event.target.value)}>
             {watchlists.map((watchlist) => (
               <option key={watchlist.id} value={watchlist.id}>
@@ -91,38 +91,38 @@ export function WatchlistSelector({
         </label>
 
         <div className="watchlist-summary">
-          <span>{activeWatchlist?.name ?? "All Signals"}</span>
+          <span>{activeWatchlist?.name ?? "Todas las señales"}</span>
           <small>
             {activeWatchlist?.kind === "all"
-              ? "No symbol filter"
+              ? "Sin filtro de símbolos"
               : activeWatchlist?.symbols.length
                 ? activeWatchlist.symbols.join(", ")
-                : "Empty watchlist"}
+                : "Watchlist vacía"}
           </small>
         </div>
       </div>
 
       <div className="watchlist-editor">
         <input
-          aria-label="Watchlist name"
-          placeholder="Custom watchlist name"
+          aria-label="Nombre de watchlist"
+          placeholder="Nombre de watchlist"
           value={draftName}
           onChange={(event) => setDraftName(event.target.value)}
         />
         <input
-          aria-label="Watchlist symbols"
-          placeholder="Symbols: NVDA, AMD, TSLA"
+          aria-label="Símbolos de watchlist"
+          placeholder="Símbolos: NVDA, AMD, TSLA"
           value={draftSymbols}
           onChange={(event) => setDraftSymbols(event.target.value)}
         />
         <button className="filter-chip active" type="button" onClick={handleSave} disabled={!canSave}>
           <Save size={14} />
-          Save
+          Guardar
         </button>
         {draftId ? (
           <button className="filter-chip danger" type="button" onClick={() => onRemoveCustom(draftId)}>
             <Trash2 size={14} />
-            Remove
+            Eliminar
           </button>
         ) : null}
       </div>

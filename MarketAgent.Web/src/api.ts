@@ -114,9 +114,9 @@ function createBriefingFromSignals(result: SignalRunResult): BriefingResult {
 
   return {
     generatedAtUtc: result.generatedAtUtc,
-    marketRegime: "Signals only",
-    summary: "Signals were generated successfully. AI briefing is unavailable.",
-    signalSummary: `${allSignals.length} calculated signals returned from the API.`,
+    marketRegime: "Solo señales",
+    summary: "Las señales se generaron correctamente. El briefing de IA no está disponible.",
+    signalSummary: `${allSignals.length} señales calculadas devueltas por la API.`,
     allSignals,
     topOpportunities,
     watchlistPullbacks,
@@ -160,9 +160,9 @@ async function postJson<T>(path: string): Promise<T> {
 
 const mockBriefing: BriefingResult = {
   generatedAtUtc: new Date().toISOString(),
-  marketRegime: "Offline preview",
-  summary: "API unavailable. Showing a small mock dataset so the dashboard layout can be reviewed.",
-  signalSummary: "Connect the backend to replace this preview with calculated MarketAgent signals.",
+  marketRegime: "Vista previa offline",
+  summary: "API no disponible. Se muestra una muestra simulada para revisar el layout del panel.",
+  signalSummary: "Conectá el backend para reemplazar esta vista previa por señales calculadas de MarketAgent.",
   allSignals: [
     {
       symbol: "ABNB",
@@ -171,7 +171,7 @@ const mockBriefing: BriefingResult = {
       action: "Candidate",
       confidence: "Medium",
       timeframe: "Intraday",
-      reason: "price closed near the session high; positive EMA20 slope",
+      reason: "precio cerca de máximos de la rueda; pendiente positiva de EMA20",
       recoveryFromLowPercent: 82,
       rsi14: 61,
       ema9: 132.4,
@@ -191,8 +191,8 @@ const mockBriefing: BriefingResult = {
       riskReward2: 2.5,
       riskReward3: 3.5,
       scoreBreakdown: [
-        { label: "Price above EMA20", points: 5 },
-        { label: "Positive EMA20 slope", points: 8 }
+        { label: "Precio sobre EMA20", points: 5 },
+        { label: "Pendiente positiva de EMA20", points: 8 }
       ]
     },
     {
@@ -202,7 +202,7 @@ const mockBriefing: BriefingResult = {
       action: "Watch for confirmation",
       confidence: "Low",
       timeframe: "WatchOnly",
-      reason: "strong recovery after gap-down; buyers absorbed early selling pressure",
+      reason: "fuerte recuperacion despues de gap-down; compradores absorbieron la presion vendedora inicial",
       recoveryFromLowPercent: 88,
       relativeStrengthVsSpy: 4.1,
       relativeVolume: 2.6,
@@ -216,9 +216,9 @@ const mockBriefing: BriefingResult = {
       reclaimOpen: true,
       reclaimPreviousClose: false,
       scoreBreakdown: [
-        { label: "Gap-down recovery", points: 10 },
-        { label: "Opening red reversal", points: 6 },
-        { label: "Intraday weakness reduced due to recovery", points: -4 }
+        { label: "Recuperación de gap-down", points: 10 },
+        { label: "Reversión desde apertura roja", points: 6 },
+        { label: "Debilidad intradiaria reducida por recuperacion", points: -4 }
       ]
     },
     {
@@ -228,7 +228,7 @@ const mockBriefing: BriefingResult = {
       action: "Avoid / high risk",
       confidence: "Low",
       timeframe: "WatchOnly",
-      reason: "price below EMA20; price below EMA50",
+      reason: "precio debajo de EMA20; precio debajo de EMA50",
       ema20: 13.8,
       ema50: 15.1,
       relativeStrengthVsSpy: -1.8,
@@ -236,16 +236,16 @@ const mockBriefing: BriefingResult = {
       distanceFromEma20Percent: -27.5,
       extensionFromEma20Percent: -27.5,
       scoreBreakdown: [
-        { label: "Price below EMA20", points: -6 },
-        { label: "Price below EMA50", points: -8 }
+        { label: "Precio debajo de EMA20", points: -6 },
+        { label: "Precio debajo de EMA50", points: -8 }
       ]
     }
   ],
   topOpportunities: [],
   watchlistPullbacks: [],
   topRisks: [],
-  highlights: ["Offline layout preview"],
-  risks: ["Backend API could not be reached"],
+  highlights: ["Vista previa offline del layout"],
+  risks: ["No se pudo conectar con la API backend"],
   watchItems: []
 };
 
