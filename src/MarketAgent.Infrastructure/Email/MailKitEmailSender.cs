@@ -3,6 +3,7 @@ using MailKit.Security;
 using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Models;
 using MimeKit;
+using MimeKit.Text;
 
 namespace MarketAgent.Infrastructure.Email;
 
@@ -23,10 +24,12 @@ public sealed class MailKitEmailSender : IEmailSender
         mimeMessage.From.Add(new MailboxAddress(message.FromName, message.FromEmail));
         mimeMessage.To.Add(MailboxAddress.Parse(message.ToEmail));
         mimeMessage.Subject = message.Subject;
-        mimeMessage.Body = new BodyBuilder
+        var body = new TextPart(TextFormat.Html)
         {
-            HtmlBody = message.HtmlBody
-        }.ToMessageBody();
+            Text = message.HtmlBody
+        };
+        body.ContentType.Charset = "utf-8";
+        mimeMessage.Body = body;
 
         using var client = new SmtpClient();
         var socketOptions = _options.EnableSsl

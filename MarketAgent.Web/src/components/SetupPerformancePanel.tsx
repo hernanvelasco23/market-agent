@@ -16,30 +16,30 @@ export function SetupPerformancePanel({
     <section className="card performance-preview setup-performance">
       <div className="card-title">
         <BarChart3 size={17} />
-        <span>Setup Performance</span>
+        <span>Performance por setup</span>
         {summary ? <b>{summary.totalSetupCount} setups</b> : null}
       </div>
 
-      <p className="performance-note">Partial intraday returns grouped by emitted setup type.</p>
+      <p className="performance-note">Retornos intradiarios parciales agrupados por tipo de setup emitido.</p>
 
       {loading ? (
         <div className="performance-empty neutral">
           <Activity size={16} />
-          <span>Loading setup performance...</span>
+          <span>Cargando performance por setup...</span>
         </div>
       ) : null}
 
       {unavailable ? (
         <div className="performance-empty">
           <AlertTriangle size={16} />
-          <span>Setup performance unavailable. The scanner can still be used normally.</span>
+          <span>Performance por setup no disponible. El scanner puede usarse normalmente.</span>
         </div>
       ) : null}
 
       {!loading && !unavailable && summary?.totalSetupCount === 0 ? (
         <div className="performance-empty neutral">
           <Activity size={16} />
-          <span>No setup outcome samples yet. Evaluate outcomes after persisted signals have partial checkpoints.</span>
+          <span>Todavía no hay muestras por setup. Evaluá outcomes cuando existan checkpoints parciales.</span>
         </div>
       ) : null}
 
@@ -47,21 +47,21 @@ export function SetupPerformancePanel({
         <div className="performance-grid">
           <article className="performance-item">
             <div className="performance-item-header">
-              <strong>Best Setup</strong>
+              <strong>Mejor setup</strong>
               <span title={summary.bestSetup ?? undefined}>{summary.bestSetup ?? "n/a"}</span>
             </div>
             <div className="performance-values">
-              <SetupMetric label="Avg 15m" value={summary.bestSetupAverageReturn15m} suffix="%" tone />
+              <SetupMetric label="Prom. 15m" value={summary.bestSetupAverageReturn15m} suffix="%" tone />
             </div>
           </article>
 
           <article className="performance-item">
             <div className="performance-item-header">
-              <strong>Worst Setup</strong>
+              <strong>Peor setup</strong>
               <span title={summary.worstSetup ?? undefined}>{summary.worstSetup ?? "n/a"}</span>
             </div>
             <div className="performance-values">
-              <SetupMetric label="Avg 15m" value={summary.worstSetupAverageReturn15m} suffix="%" tone />
+              <SetupMetric label="Prom. 15m" value={summary.worstSetupAverageReturn15m} suffix="%" tone />
             </div>
           </article>
 
@@ -69,12 +69,12 @@ export function SetupPerformancePanel({
             <article className="performance-item" key={item.setup}>
               <div className="performance-item-header">
                 <strong title={item.setup}>{item.setup}</strong>
-                <span>{formatCount(item.count)} samples</span>
+                <span>{formatCount(item.count)} muestras</span>
               </div>
               <div className="performance-values">
-                <SetupMetric label="Avg 15m" value={item.averageReturn15m} suffix="%" tone />
-                <SetupMetric label="Avg 1h" value={item.averageReturn1h} suffix="%" tone />
-                <SetupMetric label="1h Count" value={item.countWith1h} />
+                <SetupMetric label="Prom. 15m" value={item.averageReturn15m} suffix="%" tone />
+                <SetupMetric label="Prom. 1h" value={item.averageReturn1h} suffix="%" tone />
+                <SetupMetric label="Cant. 1h" value={item.countWith1h} />
               </div>
             </article>
           ))}

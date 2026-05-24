@@ -1,4 +1,5 @@
 import { Activity, AlertTriangle, Gauge } from "lucide-react";
+import { formatConfidenceLabel } from "../displayLabels";
 import type { SignalOutcomeScoreBucketSummary } from "../types";
 
 export function ScoreConfidencePerformancePanel({
@@ -18,30 +19,30 @@ export function ScoreConfidencePerformancePanel({
     <section className="card performance-preview score-confidence-performance">
       <div className="card-title">
         <Gauge size={17} />
-        <span>Score & Confidence Performance</span>
-        {summary ? <b>{confidenceItems.length + scoreBucketItems.length} groups</b> : null}
+        <span>Performance por score y confianza</span>
+        {summary ? <b>{confidenceItems.length + scoreBucketItems.length} grupos</b> : null}
       </div>
 
-      <p className="performance-note">Partial intraday returns grouped by confidence label and scanner score bucket.</p>
+      <p className="performance-note">Retornos intradiarios parciales agrupados por confianza y rango de score.</p>
 
       {loading ? (
         <div className="performance-empty neutral">
           <Activity size={16} />
-          <span>Loading score and confidence performance...</span>
+          <span>Cargando performance por score y confianza...</span>
         </div>
       ) : null}
 
       {unavailable ? (
         <div className="performance-empty">
           <AlertTriangle size={16} />
-          <span>Score and confidence performance unavailable. The scanner can still be used normally.</span>
+          <span>Performance por score y confianza no disponible. El scanner puede usarse normalmente.</span>
         </div>
       ) : null}
 
       {!loading && !unavailable && summary && !hasItems ? (
         <div className="performance-empty neutral">
           <Activity size={16} />
-          <span>No score or confidence outcome samples yet. Evaluate outcomes after partial checkpoints exist.</span>
+          <span>Todavía no hay muestras por score o confianza. Evaluá outcomes cuando existan checkpoints parciales.</span>
         </div>
       ) : null}
 
@@ -50,8 +51,8 @@ export function ScoreConfidencePerformancePanel({
           {confidenceItems.map((item) => (
             <PerformanceCard
               key={`confidence-${item.confidence}`}
-              label={item.confidence}
-              eyebrow="confidence"
+              label={formatConfidenceLabel(item.confidence)}
+              eyebrow="confianza"
               count={item.count}
               countWith15m={item.countWith15m}
               countWith1h={item.countWith1h}
@@ -66,7 +67,7 @@ export function ScoreConfidencePerformancePanel({
             <PerformanceCard
               key={`score-${item.bucket}`}
               label={item.bucket}
-              eyebrow="score bucket"
+              eyebrow="rango score"
               count={item.count}
               countWith15m={item.countWith15m}
               countWith1h={item.countWith1h}
@@ -110,13 +111,13 @@ function PerformanceCard({
         <span>{eyebrow}</span>
       </div>
       <div className="performance-values">
-        <ScoreMetric label="Samples" value={count} />
-        <ScoreMetric label="Avg 15m" value={averageReturn15m} suffix="%" tone />
-        <ScoreMetric label="Avg 1h" value={averageReturn1h} suffix="%" tone />
-        <ScoreMetric label="15m Count" value={countWith15m} />
-        <ScoreMetric label="1h Count" value={countWith1h} />
-        <ScoreMetric label="Best 15m" text={bestSymbol15m} />
-        <ScoreMetric label="Worst 15m" text={worstSymbol15m} />
+        <ScoreMetric label="Muestras" value={count} />
+        <ScoreMetric label="Prom. 15m" value={averageReturn15m} suffix="%" tone />
+        <ScoreMetric label="Prom. 1h" value={averageReturn1h} suffix="%" tone />
+        <ScoreMetric label="Cant. 15m" value={countWith15m} />
+        <ScoreMetric label="Cant. 1h" value={countWith1h} />
+        <ScoreMetric label="Mejor 15m" text={bestSymbol15m} />
+        <ScoreMetric label="Peor 15m" text={worstSymbol15m} />
       </div>
     </article>
   );

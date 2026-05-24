@@ -25,6 +25,7 @@ import { SetupPerformancePanel } from "./components/SetupPerformancePanel";
 import { Sparkline } from "./components/Sparkline";
 import { TopProfitOpportunitiesPanel } from "./components/TopProfitOpportunitiesPanel";
 import { WatchlistSelector } from "./components/WatchlistSelector";
+import { formatActionLabel, formatConfidenceLabel } from "./displayLabels";
 import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasActiveSignalFilters } from "./signalFilters";
 import type {
   BriefingResult,
@@ -50,7 +51,7 @@ const AUTO_REFRESH_INTERVAL_MS = 60_000;
 export function App() {
   const [briefing, setBriefing] = useState<BriefingResult | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
-  const [status, setStatus] = useState<Status>({ text: "Ready", tone: "idle" });
+  const [status, setStatus] = useState<Status>({ text: "Listo", tone: "idle" });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [ingestion, setIngestion] = useState<IngestionResult | null>(null);
   const [usingMock, setUsingMock] = useState(false);
@@ -144,10 +145,10 @@ export function App() {
 
     try {
       await action();
-      setStatus({ text: `${label} completed`, tone: "ok" });
+      setStatus({ text: `${label} completado`, tone: "ok" });
     } catch (error) {
       setStatus({
-        text: error instanceof Error ? error.message : `${label} failed`,
+        text: error instanceof Error ? error.message : `${label} falló`,
         tone: "error"
       });
     } finally {
@@ -156,7 +157,7 @@ export function App() {
   }
 
   async function refreshDashboard() {
-    await withAction("Refresh dashboard", async () => {
+    await withAction("Actualizar panel", async () => {
       await loadDashboardData();
     });
   }
@@ -172,7 +173,7 @@ export function App() {
       await loadDashboardData();
     } catch (error) {
       setStatus({
-        text: error instanceof Error ? error.message : "Auto-refresh failed",
+        text: error instanceof Error ? error.message : "Fallo el auto-refresh",
         tone: "error"
       });
     } finally {
@@ -193,12 +194,12 @@ export function App() {
       ]);
       setLastUpdatedAt(new Date());
       if (state.isMock) {
-        setStatus({ text: "API unavailable. Mock preview loaded.", tone: "warn" });
+        setStatus({ text: "API no disponible. Se muestra una vista previa.", tone: "warn" });
       }
   }
 
   async function handleRunIngestion() {
-    await withAction("Run ingestion", async () => {
+    await withAction("Ejecutar ingesta", async () => {
       const result = await runIngestion();
       setIngestion(result);
       await Promise.all([refreshOutcomeSummary(), refreshSetupSummary(), refreshScoreBucketSummary()]);
@@ -206,15 +207,15 @@ export function App() {
   }
 
   async function handleRunSignals() {
-    await withAction("Run signals", async () => {
+    await withAction("Generar señales", async () => {
       const result = await runSignals();
       const all = result.signals.map(toDashboardSignal);
       setUsingMock(false);
       setBriefing((current) => ({
         generatedAtUtc: result.generatedAtUtc,
-        marketRegime: current?.marketRegime ?? "Signals only",
-        summary: current?.summary ?? "Calculated signals returned from the API.",
-        signalSummary: `${all.length} calculated signals returned from the API.`,
+        marketRegime: current?.marketRegime ?? "Solo señales",
+        summary: current?.summary ?? "Señales calculadas devueltas por la API.",
+        signalSummary: `${all.length} señales calculadas devueltas por la API.`,
         allSignals: all,
         topOpportunities: all.filter((signal) => signal.score >= 60 && signal.action === "Candidate"),
         watchlistPullbacks: all.filter((signal) => signal.setupType === "Pullback" || signal.action.startsWith("Watch")),
@@ -235,7 +236,7 @@ export function App() {
   }
 
   async function handleGenerateBriefing() {
-    await withAction("Generate briefing", async () => {
+    await withAction("Generar briefing", async () => {
       const result = await runBriefing();
       setUsingMock(false);
       setBriefing(result);
@@ -338,39 +339,39 @@ export function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">MarketAgent</p>
-          <h1>Signal Dashboard</h1>
+          <h1>Panel de señales</h1>
         </div>
         <div className="actions">
-          <ActionButton icon={<Zap size={16} />} label="Run Ingestion" onClick={handleRunIngestion} loading={loadingAction === "Run ingestion"} />
-          <ActionButton icon={<BarChart3 size={16} />} label="Run Signals" onClick={handleRunSignals} loading={loadingAction === "Run signals"} />
-          <ActionButton icon={<Bot size={16} />} label="Generate Briefing" onClick={handleGenerateBriefing} loading={loadingAction === "Generate briefing"} />
-          <ActionButton icon={<RefreshCw size={16} />} label="Refresh Dashboard" onClick={refreshDashboard} loading={loadingAction === "Refresh dashboard"} />
+          <ActionButton icon={<Zap size={16} />} label="Ejecutar ingesta" onClick={handleRunIngestion} loading={loadingAction === "Ejecutar ingesta"} />
+          <ActionButton icon={<BarChart3 size={16} />} label="Generar señales" onClick={handleRunSignals} loading={loadingAction === "Generar señales"} />
+          <ActionButton icon={<Bot size={16} />} label="Generar briefing" onClick={handleGenerateBriefing} loading={loadingAction === "Generar briefing"} />
+          <ActionButton icon={<RefreshCw size={16} />} label="Actualizar panel" onClick={refreshDashboard} loading={loadingAction === "Actualizar panel"} />
         </div>
       </header>
 
       <section className="status-row">
         <span className={`status ${status.tone}`}>{status.text}</span>
-        <span className="status ok">Auto-refresh: ON</span>
-        {lastUpdatedAt ? <span className="timestamp">Last updated {formatDateTime(lastUpdatedAt)}</span> : null}
-        {usingMock ? <span className="status warn">Mock fallback</span> : null}
-        {briefing ? <span className="timestamp">Generated {formatDate(briefing.generatedAtUtc)}</span> : null}
+        <span className="status ok">Auto-refresh activo</span>
+        {lastUpdatedAt ? <span className="timestamp">Última actualización {formatDateTime(lastUpdatedAt)}</span> : null}
+        {usingMock ? <span className="status warn">Vista previa</span> : null}
+        {briefing ? <span className="timestamp">Generado {formatDate(briefing.generatedAtUtc)}</span> : null}
         {ingestion ? (
           <span className={ingestion.failed > 0 ? "status warn" : "status ok"}>
-            Ingestion {ingestion.succeeded}/{ingestion.totalRequested}
+            Ingesta {ingestion.succeeded}/{ingestion.totalRequested}
           </span>
         ) : null}
       </section>
 
       <section className="hero-grid">
-        <InfoCard title="Market Regime" value={briefing?.marketRegime ?? "Loading"} icon={<TrendingUp size={18} />} />
-        <TextCard title="Summary" text={briefing?.summary ?? "Waiting for dashboard data."} />
-        <TextCard title="Signal Summary" text={briefing?.signalSummary ?? "Signals will appear after the API responds."} />
+        <InfoCard title="Contexto de mercado" value={briefing?.marketRegime ?? "Cargando"} icon={<TrendingUp size={18} />} />
+        <TextCard title="Resumen" text={briefing?.summary ?? "Esperando datos del panel."} />
+        <TextCard title="Resumen de señales" text={briefing?.signalSummary ?? "Las señales aparecerán cuando responda la API."} />
       </section>
 
       <section className="signal-groups">
-        <SignalGroup title="Top Opportunities" tone="opportunity" icon={<Sparkles size={17} />} signals={topOpportunities} onSelect={setSelectedSymbol} />
-        <SignalGroup title="Watchlist Pullbacks" tone="watch" icon={<Search size={17} />} signals={watchlistPullbacks} onSelect={setSelectedSymbol} />
-        <SignalGroup title="Top Risks" tone="risk" icon={<ShieldAlert size={17} />} signals={topRisks} onSelect={setSelectedSymbol} />
+        <SignalGroup title="Mejores oportunidades" tone="opportunity" icon={<Sparkles size={17} />} signals={topOpportunities} onSelect={setSelectedSymbol} />
+        <SignalGroup title="Pullbacks en seguimiento" tone="watch" icon={<Search size={17} />} signals={watchlistPullbacks} onSelect={setSelectedSymbol} />
+        <SignalGroup title="Riesgos principales" tone="risk" icon={<ShieldAlert size={17} />} signals={topRisks} onSelect={setSelectedSymbol} />
       </section>
 
       <TopProfitOpportunitiesPanel signals={watchlistSignals} onSelectSymbol={setSelectedSymbol} />
@@ -427,9 +428,9 @@ export function App() {
       </section>
 
       <section className="briefing-lists">
-        <ListCard title="Highlights" items={briefing?.highlights ?? []} />
-        <ListCard title="Risks" items={briefing?.risks ?? []} />
-        <ListCard title="Watch Items" items={briefing?.watchItems ?? []} />
+        <ListCard title="Destacados" items={briefing?.highlights ?? []} />
+        <ListCard title="Riesgos" items={briefing?.risks ?? []} />
+        <ListCard title="Items en seguimiento" items={briefing?.watchItems ?? []} />
       </section>
     </main>
   );
@@ -496,12 +497,12 @@ function SignalGroup({
         <b>{signals.length}</b>
       </div>
       <div className="group-list">
-        {signals.length === 0 ? <span className="empty">None</span> : null}
+        {signals.length === 0 ? <span className="empty">Sin datos</span> : null}
         {signals.slice(0, 6).map((signal) => (
           <button key={signal.symbol} className="group-item" type="button" onClick={() => onSelect(signal.symbol)}>
             <span>{signal.symbol}</span>
             <Score value={signal.score} />
-            <small>{signal.action}</small>
+            <small>{formatActionLabel(signal.action)}</small>
           </button>
         ))}
       </div>
@@ -532,20 +533,20 @@ function SignalsTable({
     <article className="card table-card">
       <div className="card-title">
         <BarChart3 size={17} />
-        <span>All Signals</span>
+        <span>Todas las señales</span>
         <b>{signals.length}</b>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Trend</th>
+              <th>Símbolo</th>
+              <th>Tendencia</th>
               <th>Score</th>
               <th>Setup</th>
-              <th>Flag</th>
-              <th>Action</th>
-              <th>Confidence</th>
+              <th>Señal</th>
+              <th>Acción</th>
+              <th>Confianza</th>
               <th>Timeframe</th>
               <th>RS</th>
               <th>RVOL</th>
@@ -563,16 +564,16 @@ function SignalsTable({
                 <td className="table-empty" colSpan={16}>
                   {!hasLoadedSignals ? (
                     <div className="table-empty-state">
-                      <strong>No signals loaded yet.</strong>
-                      <span>Run signals or generate a briefing to populate the dashboard.</span>
+                      <strong>Todavía no hay señales cargadas.</strong>
+                      <span>Generá señales o un briefing para poblar el panel.</span>
                     </div>
                   ) : (
                     <div className="table-empty-state">
-                      <strong>No signals match the current watchlist or filters.</strong>
-                      <span>Try another watchlist, clearing filters, or lowering thresholds.</span>
+                      <strong>No hay señales que coincidan con la watchlist o los filtros actuales.</strong>
+                      <span>Probá otra watchlist, limpiá filtros o bajá los umbrales.</span>
                       {hasActiveFilters ? (
                         <button className="filter-reset inline" type="button" onClick={onResetFilters}>
-                          Clear filters
+                          Limpiar filtros
                         </button>
                       ) : null}
                     </div>
@@ -595,7 +596,7 @@ function SignalsTable({
                   <td>{signal.setupType}</td>
                   <td>{signal.openingRedReversalDetected ? <span className="signal-flag">ORR</span> : null}</td>
                   <td><Pill value={signal.action} /></td>
-                  <td>{signal.confidence}</td>
+                  <td>{formatConfidenceLabel(signal.confidence)}</td>
                   <td>{signal.timeframe}</td>
                   <td><SignalMetric value={signal.relativeStrengthVsSpy} kind="rs" suffix="%" /></td>
                   <td><SignalMetric value={signal.relativeVolume} kind="rvol" /></td>
@@ -623,7 +624,7 @@ function ListCard({ title, items }: { title: string; items: string[] }) {
         <span>{title}</span>
         <b>{items.length}</b>
       </div>
-      {items.length === 0 ? <span className="empty">None</span> : null}
+      {items.length === 0 ? <span className="empty">Sin datos</span> : null}
       {items.map((item) => (
         <p key={item}>{item}</p>
       ))}
@@ -638,7 +639,7 @@ function Score({ value, large = false }: { value: number; large?: boolean }) {
 
 function Pill({ value }: { value: string }) {
   const tone = value === "Candidate" ? "pill-good" : value === "Avoid / high risk" ? "pill-risk" : "pill-watch";
-  return <span className={`pill ${tone}`}>{value}</span>;
+  return <span className={`pill ${tone}`}>{formatActionLabel(value)}</span>;
 }
 
 function SignalMetric({

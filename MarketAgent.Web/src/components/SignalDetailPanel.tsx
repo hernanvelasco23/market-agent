@@ -1,4 +1,5 @@
 import { Sparkline } from "./Sparkline";
+import { formatActionLabel, formatConfidenceLabel } from "../displayLabels";
 import type { DashboardSignal } from "../types";
 
 type SignalDetailPanelProps = {
@@ -10,7 +11,7 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
   if (!signal) {
     return (
       <article className="card detail-card">
-        <span className="empty">No signal selected</span>
+        <span className="empty">No hay señal seleccionada</span>
       </article>
     );
   }
@@ -31,13 +32,13 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
       <div className="detail-status-row">
         <Pill value={signal.action} />
         {signal.openingRedReversalDetected ? <span className="signal-flag">ORR</span> : null}
-        <span className="detail-chip">{signal.confidence}</span>
+        <span className="detail-chip">{formatConfidenceLabel(signal.confidence)}</span>
         <span className="detail-chip">{signal.timeframe}</span>
       </div>
 
       <section className="detail-section detail-trend-section">
         <div className="detail-section-heading">
-          <span>Recent Trend</span>
+          <span>Tendencia reciente</span>
           <b>{formatMoney(latestPrice)}</b>
         </div>
         <div className="detail-sparkline">
@@ -47,7 +48,7 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
 
       <section className="detail-section">
         <div className="detail-section-heading">
-          <span>Key Metrics</span>
+            <span>Métricas clave</span>
         </div>
         <div className="detail-grid compact">
           <Metric label="RS vs SPY" value={formatPercent(signal.relativeStrengthVsSpy)} tone={metricTone(signal.relativeStrengthVsSpy, "rs")} />
@@ -60,20 +61,20 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
       {hasOpeningRedReversalData(signal) ? (
         <section className="detail-section">
           <div className="detail-section-heading">
-            <span>Opening Red Reversal</span>
+            <span>Reversión desde apertura roja</span>
           </div>
           <div className="detail-grid compact">
-            <Metric label="Open Gap" value={formatPercent(signal.openGapPercent)} tone={signal.openGapPercent != null && signal.openGapPercent < 0 ? "metric-value-risk" : undefined} />
-            <Metric label="Low Recovery" value={formatPercent(signal.openingRedReversalRecoveryFromLowPercent)} tone={signal.openingRedReversalDetected ? "metric-value-good" : undefined} />
-            <Metric label="Reclaim Open" value={formatBoolean(signal.reclaimOpen)} tone={signal.reclaimOpen ? "metric-value-good" : "metric-value-muted"} />
-            <Metric label="Reclaim Prev Close" value={formatBoolean(signal.reclaimPreviousClose)} tone={signal.reclaimPreviousClose ? "metric-value-good" : "metric-value-muted"} />
+            <Metric label="Gap apertura" value={formatPercent(signal.openGapPercent)} tone={signal.openGapPercent != null && signal.openGapPercent < 0 ? "metric-value-risk" : undefined} />
+            <Metric label="Recup. mínimo" value={formatPercent(signal.openingRedReversalRecoveryFromLowPercent)} tone={signal.openingRedReversalDetected ? "metric-value-good" : undefined} />
+            <Metric label="Recup. apertura" value={formatBoolean(signal.reclaimOpen)} tone={signal.reclaimOpen ? "metric-value-good" : "metric-value-muted"} />
+            <Metric label="Recup. cierre prev." value={formatBoolean(signal.reclaimPreviousClose)} tone={signal.reclaimPreviousClose ? "metric-value-good" : "metric-value-muted"} />
           </div>
         </section>
       ) : null}
 
       <section className="detail-section">
         <div className="detail-section-heading">
-          <span>Trend Context</span>
+          <span>Contexto de tendencia</span>
         </div>
         <div className="detail-grid compact">
           <Metric label="EMA9" value={formatMoney(signal.ema9)} />
@@ -85,37 +86,37 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
 
       <section className="detail-section">
         <div className="detail-section-heading">
-          <span>Risk Plan</span>
+          <span>Plan de riesgo</span>
         </div>
         <div className="detail-grid compact">
-          <Metric label="Entry / Last" value={formatMoney(signal.entry ?? latestPrice)} />
+          <Metric label="Entrada / último" value={formatMoney(signal.entry ?? latestPrice)} />
           <Metric label="Stop" value={formatMoney(signal.stop)} />
-          <Metric label="Target" value={formatMoney(signal.target ?? signal.takeProfit2)} />
+          <Metric label="Objetivo" value={formatMoney(signal.target ?? signal.takeProfit2)} />
           <Metric label="TP1" value={formatMoney(signal.takeProfit1)} />
           <Metric label="TP2" value={formatMoney(signal.takeProfit2)} />
           <Metric label="TP3" value={formatMoney(signal.takeProfit3)} />
           <Metric label="RR1" value={formatNumber(signal.riskReward1)} />
           <Metric label="RR2" value={formatNumber(signal.riskReward2)} />
           <Metric label="RR3" value={formatNumber(signal.riskReward3)} />
-          <Metric label="Risk / Share" value={formatMoney(signal.riskPerShare)} />
-          <Metric label="Position Size" value={formatNumber(signal.suggestedPositionSize)} />
-          <Metric label="Extension" value={signal.extensionRisk ?? "n/a"} />
+          <Metric label="Riesgo / acción" value={formatMoney(signal.riskPerShare)} />
+          <Metric label="Tamaño posición" value={formatNumber(signal.suggestedPositionSize)} />
+          <Metric label="Extensión" value={signal.extensionRisk ?? "n/a"} />
         </div>
       </section>
 
       <section className="detail-section">
         <div className="detail-section-heading">
-          <span>Explanation</span>
+          <span>Explicación</span>
         </div>
         <p className="reason">{signal.reason}</p>
       </section>
 
       <section className="detail-section breakdown">
         <div className="detail-section-heading">
-          <span>Score Breakdown</span>
+          <span>Desglose de score</span>
           <b>{signal.scoreBreakdown?.length ?? 0}</b>
         </div>
-        {(signal.scoreBreakdown ?? []).length === 0 ? <span className="empty">No factors returned</span> : null}
+        {(signal.scoreBreakdown ?? []).length === 0 ? <span className="empty">Sin factores disponibles</span> : null}
         {(signal.scoreBreakdown ?? []).map((factor) => (
           <div className="factor" key={`${factor.label}-${factor.points}`}>
             <span>{factor.label}</span>
@@ -143,7 +144,7 @@ function Score({ value, large = false }: { value: number; large?: boolean }) {
 
 function Pill({ value }: { value: string }) {
   const tone = value === "Candidate" ? "pill-good" : value === "Avoid / high risk" ? "pill-risk" : "pill-watch";
-  return <span className={`pill ${tone}`}>{value}</span>;
+  return <span className={`pill ${tone}`}>{formatActionLabel(value)}</span>;
 }
 
 function getLatestPrice(prices?: number[] | null) {
@@ -197,5 +198,5 @@ function formatPercent(value?: number | null) {
 }
 
 function formatBoolean(value?: boolean | null) {
-  return value == null ? "n/a" : value ? "Yes" : "No";
+  return value == null ? "n/a" : value ? "Sí" : "No";
 }

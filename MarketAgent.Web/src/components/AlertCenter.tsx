@@ -1,4 +1,5 @@
 import { BellRing } from "lucide-react";
+import { formatActionLabel, formatSeverityLabel } from "../displayLabels";
 import type { DashboardAlert } from "../types";
 
 type AlertCenterProps = {
@@ -11,12 +12,12 @@ export function AlertCenter({ alerts, onSelectSymbol }: AlertCenterProps) {
     <article className="card alert-center">
       <div className="card-title">
         <BellRing size={17} />
-        <span>Alert Center</span>
+        <span>Centro de alertas</span>
         <b>{alerts.length}</b>
       </div>
 
       {alerts.length === 0 ? (
-        <p className="empty alert-empty">No active in-app alerts from the current signal set.</p>
+        <p className="empty alert-empty">No hay alertas activas para el set actual de señales.</p>
       ) : (
         <div className="alert-list">
           {alerts.map((alert) => (
@@ -28,13 +29,13 @@ export function AlertCenter({ alerts, onSelectSymbol }: AlertCenterProps) {
             >
               <div className="alert-heading">
                 <span className="alert-symbol">{alert.symbol}</span>
-                <span className={`alert-severity alert-severity-${alert.severity}`}>{alert.severity}</span>
+                <span className={`alert-severity alert-severity-${alert.severity}`}>{formatSeverityLabel(alert.severity)}</span>
               </div>
               <strong>{alert.title}</strong>
               <p>{alert.description}</p>
               <div className="alert-meta">
                 {alert.setupType ? <span>{alert.setupType}</span> : null}
-                {alert.action ? <span>{alert.action}</span> : null}
+                {alert.action ? <span>{formatActionLabel(alert.action)}</span> : null}
               </div>
               <div className="alert-metrics">
                 {alert.metrics.map((metric) => (

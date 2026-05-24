@@ -176,8 +176,8 @@ public sealed class AlertEvaluationService : IAlertEvaluationService
         DateTime createdAtUtc,
         AlertRuleDecision decision)
     {
-        var title = $"{candidate.Symbol} high-quality candidate";
-        var message = $"{candidate.Symbol} generated a {decision.Confidence} confidence Candidate signal with score {candidate.Score:0.##}.";
+        var title = $"{candidate.Symbol} candidato de alta calidad";
+        var message = $"{candidate.Symbol} generó una señal Candidato con confianza {FormatConfidenceLabel(decision.Confidence)} y score {candidate.Score:0.##}.";
         var reasonJson = JsonSerializer.Serialize(
             new
             {
@@ -232,6 +232,17 @@ public sealed class AlertEvaluationService : IAlertEvaluationService
         return string.IsNullOrWhiteSpace(value)
             ? "Unknown"
             : value.Trim();
+    }
+
+    private static string FormatConfidenceLabel(string value)
+    {
+        return value.Trim() switch
+        {
+            var item when item.Equals("High", StringComparison.OrdinalIgnoreCase) => "Alta",
+            var item when item.Equals("Medium", StringComparison.OrdinalIgnoreCase) => "Media",
+            var item when item.Equals("Low", StringComparison.OrdinalIgnoreCase) => "Baja",
+            _ => value
+        };
     }
 
     private static int NormalizeLimit(int? limit)
