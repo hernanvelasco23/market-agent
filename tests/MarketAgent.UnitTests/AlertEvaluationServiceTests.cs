@@ -156,6 +156,12 @@ public sealed class AlertEvaluationServiceTests
                 _candidates.Take(limit).ToArray());
         }
 
+        public Task<MarketSignalRunResult?> GetLatestRunAsync(
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
             Guid signalSnapshotId,
             CancellationToken cancellationToken = default)

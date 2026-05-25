@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { AlertTriangle, BarChart3, Bot, RefreshCw, Search, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -10,7 +10,6 @@ import {
   loadSignalOutcomeSummary,
   loadSignalPerformancePreview,
   runBriefing,
-  runIngestion,
   runSignals,
   toDashboardSignal
 } from "./api";
@@ -30,13 +29,13 @@ import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasAc
 import type {
   BriefingResult,
   DashboardSignal,
-  IngestionResult,
   SignalFilters,
   SignalOutcomeScoreBucketSummary,
   SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
   SignalPerformancePreviewResult,
   SparklinePricesBySymbol,
+  SystemStatus,
   Watchlist
 } from "./types";
 import { allSignalsWatchlist, applyWatchlistFilter, getAllWatchlists, loadCustomWatchlists, saveCustomWatchlists } from "./watchlists";
@@ -53,7 +52,6 @@ export function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ text: "Listo", tone: "idle" });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [ingestion, setIngestion] = useState<IngestionResult | null>(null);
   const [usingMock, setUsingMock] = useState(false);
   const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
   const [performancePreview, setPerformancePreview] = useState<SignalPerformancePreviewResult | null>(null);
@@ -67,11 +65,15 @@ export function App() {
   const [scoreBucketSummary, setScoreBucketSummary] = useState<SignalOutcomeScoreBucketSummary | null>(null);
   const [scoreBucketSummaryLoading, setScoreBucketSummaryLoading] = useState(false);
   const [scoreBucketSummaryUnavailable, setScoreBucketSummaryUnavailable] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
   const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
   const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [lastSignalsGeneratedAt, setLastSignalsGeneratedAt] = useState<Date | null>(null);
+  const [lastAIBriefingAt, setLastAIBriefingAt] = useState<Date | null>(null);
   const autoRefreshInFlight = useRef(false);
+  const manualActionInFlight = useRef(false);
 
   const allSignals = briefing?.allSignals ?? [];
   const watchlists = useMemo(() => getAllWatchlists(customWatchlists), [customWatchlists]);
@@ -97,6 +99,7 @@ export function App() {
     () => filteredSignals.find((signal) => signal.symbol === selectedSymbol) ?? filteredSignals[0] ?? null,
     [filteredSignals, selectedSymbol]
   );
+  const aiBriefingDisabled = systemStatus?.azureOpenAIEnabled !== true;
   const selectedSparklinePrices = selectedSignal
     ? sparklinePrices[selectedSignal.symbol.toUpperCase()]
     : null;
@@ -140,6 +143,11 @@ export function App() {
   }, [filteredSignals, selectedSymbol]);
 
   async function withAction(label: string, action: () => Promise<void>) {
+    if (manualActionInFlight.current) {
+      return;
+    }
+
+    manualActionInFlight.current = true;
     setLoadingAction(label);
     setStatus({ text: `${label}...`, tone: "idle" });
 
@@ -152,6 +160,7 @@ export function App() {
         tone: "error"
       });
     } finally {
+      manualActionInFlight.current = false;
       setLoadingAction(null);
     }
   }
@@ -184,6 +193,7 @@ export function App() {
   async function loadDashboardData() {
       const state = await loadDashboard();
       setBriefing(state.briefing);
+      setSystemStatus(state.systemStatus ?? null);
       setUsingMock(state.isMock);
       await Promise.all([
         refreshSparklines(),
@@ -198,16 +208,8 @@ export function App() {
       }
   }
 
-  async function handleRunIngestion() {
-    await withAction("Ejecutar ingesta", async () => {
-      const result = await runIngestion();
-      setIngestion(result);
-      await Promise.all([refreshOutcomeSummary(), refreshSetupSummary(), refreshScoreBucketSummary()]);
-    });
-  }
-
   async function handleRunSignals() {
-    await withAction("Generar señales", async () => {
+    await withAction("Generate Signals", async () => {
       const result = await runSignals();
       const all = result.signals.map(toDashboardSignal);
       setUsingMock(false);
@@ -224,6 +226,7 @@ export function App() {
         risks: current?.risks ?? [],
         watchItems: current?.watchItems ?? []
       }));
+      setLastSignalsGeneratedAt(new Date(result.generatedAtUtc));
       setSelectedSymbol(all[0]?.symbol ?? null);
       await Promise.all([
         refreshSparklines(),
@@ -236,10 +239,15 @@ export function App() {
   }
 
   async function handleGenerateBriefing() {
-    await withAction("Generar briefing", async () => {
+    if (aiBriefingDisabled) {
+      return;
+    }
+
+    await withAction("Generate AI Briefing", async () => {
       const result = await runBriefing();
       setUsingMock(false);
       setBriefing(result);
+      setLastAIBriefingAt(new Date(result.generatedAtUtc));
       setSelectedSymbol(result.allSignals[0]?.symbol ?? null);
       await Promise.all([
         refreshSparklines(),
@@ -342,9 +350,20 @@ export function App() {
           <h1>Panel de señales</h1>
         </div>
         <div className="actions">
-          <ActionButton icon={<Zap size={16} />} label="Ejecutar ingesta" onClick={handleRunIngestion} loading={loadingAction === "Ejecutar ingesta"} />
-          <ActionButton icon={<BarChart3 size={16} />} label="Generar señales" onClick={handleRunSignals} loading={loadingAction === "Generar señales"} />
-          <ActionButton icon={<Bot size={16} />} label="Generar briefing" onClick={handleGenerateBriefing} loading={loadingAction === "Generar briefing"} />
+          <ActionButton
+            icon={<BarChart3 size={16} />}
+            label={loadingAction === "Generate Signals" ? "Generating..." : lastSignalsGeneratedAt ? "Signals Updated" : "Generate Signals"}
+            onClick={handleRunSignals}
+            loading={loadingAction === "Generate Signals"}
+          />
+          <ActionButton
+            icon={<Bot size={16} />}
+            label={loadingAction === "Generate AI Briefing" ? "Generating..." : lastAIBriefingAt ? "AI Briefing Updated" : "Generate AI Briefing"}
+            onClick={handleGenerateBriefing}
+            loading={loadingAction === "Generate AI Briefing"}
+            disabled={aiBriefingDisabled}
+            title={aiBriefingDisabled ? "AI briefing disabled by configuration" : undefined}
+          />
           <ActionButton icon={<RefreshCw size={16} />} label="Actualizar panel" onClick={refreshDashboard} loading={loadingAction === "Actualizar panel"} />
         </div>
       </header>
@@ -352,15 +371,15 @@ export function App() {
       <section className="status-row">
         <span className={`status ${status.tone}`}>{status.text}</span>
         <span className="status ok">Auto-refresh activo</span>
+        <span className={getMarketStatusClassName(systemStatus)}>{getMarketStatusLabel(systemStatus)}</span>
         {lastUpdatedAt ? <span className="timestamp">Última actualización {formatDateTime(lastUpdatedAt)}</span> : null}
+        {lastSignalsGeneratedAt ? <span className="timestamp">Últimas señales {formatDateTime(lastSignalsGeneratedAt)}</span> : null}
+        {lastAIBriefingAt ? <span className="timestamp">Último briefing IA {formatDateTime(lastAIBriefingAt)}</span> : null}
         {usingMock ? <span className="status warn">Vista previa</span> : null}
         {briefing ? <span className="timestamp">Generado {formatDate(briefing.generatedAtUtc)}</span> : null}
-        {ingestion ? (
-          <span className={ingestion.failed > 0 ? "status warn" : "status ok"}>
-            Ingesta {ingestion.succeeded}/{ingestion.totalRequested}
-          </span>
-        ) : null}
       </section>
+
+      <p className="cost-awareness-note">Signals refresh automatically from persisted market snapshots. AI generation is manual.</p>
 
       <section className="hero-grid">
         <InfoCard title="Contexto de mercado" value={briefing?.marketRegime ?? "Cargando"} icon={<TrendingUp size={18} />} />
@@ -439,16 +458,20 @@ export function App() {
 function ActionButton({
   icon,
   label,
+  disabled = false,
   loading,
+  title,
   onClick
 }: {
   icon: ReactNode;
   label: string;
+  disabled?: boolean;
   loading: boolean;
+  title?: string;
   onClick: () => void;
 }) {
   return (
-    <button className="action-button" type="button" onClick={onClick} disabled={loading}>
+    <button className="action-button" type="button" onClick={onClick} disabled={loading || disabled} title={title}>
       {loading ? <RefreshCw className="spin" size={16} /> : icon}
       <span>{label}</span>
     </button>
@@ -677,6 +700,30 @@ function metricTone(value: number | null | undefined, kind: "rs" | "rvol" | "ext
   if (value >= 3) return "metric-watch";
   if (value >= 0) return "metric-good";
   return "metric-muted";
+}
+
+function getMarketStatusLabel(status: SystemStatus | null) {
+  if (status?.isHoliday || status?.marketStatus === "HOLIDAY") {
+    return "Holiday / No Live Market Data";
+  }
+
+  if (status?.isMarketOpen || status?.marketStatus === "OPEN") {
+    return "Market Open";
+  }
+
+  return "Market Closed";
+}
+
+function getMarketStatusClassName(status: SystemStatus | null) {
+  if (status?.isHoliday || status?.marketStatus === "HOLIDAY") {
+    return "status warn";
+  }
+
+  if (status?.isMarketOpen || status?.marketStatus === "OPEN") {
+    return "status ok";
+  }
+
+  return "status warn";
 }
 
 function formatDate(value: string) {

@@ -168,6 +168,17 @@ app.MapPost(
     });
 
 app.MapGet(
+    "/api/signals/latest",
+    async (ISignalSnapshotHistoryRepository signalSnapshotHistoryRepository, CancellationToken cancellationToken) =>
+    {
+        var result = await signalSnapshotHistoryRepository.GetLatestRunAsync(cancellationToken);
+
+        return result is null
+            ? Results.NotFound()
+            : Results.Ok(result);
+    });
+
+app.MapGet(
     "/api/signals/performance-preview",
     async (ISignalPerformancePreviewService signalPerformancePreviewService, int? days, CancellationToken cancellationToken) =>
     {
@@ -230,15 +241,26 @@ app.MapGet(
     (
         MarketAgentSchedulerOptions schedulerOptions,
         EmailDeliveryOptions emailOptions,
+        IMarketHoursService marketHoursService,
         IMarketAgentCycleSchedulerRunner schedulerRunner,
         IWebHostEnvironment environment) =>
     {
+        var utcNow = DateTime.UtcNow;
+        var isMarketOpen = marketHoursService.IsMarketOpen(utcNow);
+        var azureOpenAIOptions = app.Configuration.GetSection(AzureOpenAIOptions.SectionName).Get<AzureOpenAIOptions>() ?? new AzureOpenAIOptions();
+
         return Results.Ok(new
         {
             schedulerEnabled = schedulerOptions.Enabled,
             intervalMinutes = schedulerOptions.GetSafeIntervalMinutes(),
             marketHoursOnly = schedulerOptions.MarketHoursOnly,
             emailConfigured = IsEmailDeliveryConfigured(emailOptions),
+            azureOpenAIEnabled = azureOpenAIOptions.Enabled,
+            azureOpenAIConfigured = IsAzureOpenAIConfigured(azureOpenAIOptions),
+            marketStatus = isMarketOpen ? "OPEN" : "CLOSED",
+            isMarketOpen,
+            isHoliday = false,
+            statusCheckedAtUtc = utcNow,
             lastCycleRunUtc = schedulerRunner.LastCycleRunUtc,
             environmentName = environment.EnvironmentName
         });
@@ -355,7 +377,9 @@ static void LogStartupConfiguration(WebApplication app)
 {
     var schedulerOptions = app.Services.GetRequiredService<MarketAgentSchedulerOptions>();
     var emailOptions = app.Services.GetRequiredService<EmailDeliveryOptions>();
+    var azureOpenAIOptions = app.Configuration.GetSection(AzureOpenAIOptions.SectionName).Get<AzureOpenAIOptions>() ?? new AzureOpenAIOptions();
     var emailConfigured = IsEmailDeliveryConfigured(emailOptions);
+    var azureOpenAIConfigured = IsAzureOpenAIConfigured(azureOpenAIOptions);
 
     app.Logger.LogInformation(
         "MarketAgentScheduler config. Enabled: {Enabled}. IntervalMinutes: {IntervalMinutes}. RunEmailDelivery: {RunEmailDelivery}. MarketHoursOnly: {MarketHoursOnly}. RunOnStartup: {RunOnStartup}.",
@@ -371,6 +395,13 @@ static void LogStartupConfiguration(WebApplication app)
         !string.IsNullOrWhiteSpace(emailOptions.ToEmail),
         !string.IsNullOrWhiteSpace(emailOptions.FromEmail));
 
+    app.Logger.LogInformation(
+        "AzureOpenAI config. Enabled: {Enabled}. EndpointConfigured: {EndpointConfigured}. DeploymentNameConfigured: {DeploymentNameConfigured}. ApiKeyConfigured: {ApiKeyConfigured}.",
+        azureOpenAIOptions.Enabled,
+        !string.IsNullOrWhiteSpace(azureOpenAIOptions.Endpoint),
+        !string.IsNullOrWhiteSpace(azureOpenAIOptions.DeploymentName),
+        !string.IsNullOrWhiteSpace(azureOpenAIOptions.ApiKey));
+
     if (schedulerOptions.Enabled && schedulerOptions.IntervalMinutes <= 0)
     {
         app.Logger.LogWarning(
@@ -383,6 +414,11 @@ static void LogStartupConfiguration(WebApplication app)
     {
         app.Logger.LogWarning("MarketAgentScheduler email delivery is enabled, but EmailDelivery SMTP configuration is incomplete.");
     }
+
+    if (azureOpenAIOptions.Enabled && !azureOpenAIConfigured)
+    {
+        app.Logger.LogWarning("AzureOpenAI is enabled, but configuration is incomplete. Endpoint, DeploymentName, and ApiKey are required.");
+    }
 }
 
 static bool IsEmailDeliveryConfigured(EmailDeliveryOptions options)
@@ -391,4 +427,11 @@ static bool IsEmailDeliveryConfigured(EmailDeliveryOptions options)
         && !string.IsNullOrWhiteSpace(options.ToEmail)
         && !string.IsNullOrWhiteSpace(options.FromEmail)
         && options.SmtpPort > 0;
+}
+
+static bool IsAzureOpenAIConfigured(AzureOpenAIOptions options)
+{
+    return !string.IsNullOrWhiteSpace(options.Endpoint)
+        && !string.IsNullOrWhiteSpace(options.DeploymentName)
+        && !string.IsNullOrWhiteSpace(options.ApiKey);
 }

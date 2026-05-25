@@ -3,6 +3,7 @@ using MarketAgent.Application.Abstractions;
 using MarketAgent.Application.Models;
 using MarketAgent.Application.Signals;
 using MarketAgent.Domain.Entities;
+using MarketAgent.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace MarketAgent.Infrastructure.Persistence;
@@ -90,6 +91,32 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<MarketSignalRunResult?> GetLatestRunAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var latestRun = await _dbContext.SignalSnapshots
+            .AsNoTracking()
+            .OrderByDescending(snapshot => snapshot.CreatedAtUtc)
+            .Select(snapshot => new { snapshot.RunId, snapshot.CreatedAtUtc })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestRun is null)
+        {
+            return null;
+        }
+
+        var rows = await _dbContext.SignalSnapshots
+            .AsNoTracking()
+            .Where(snapshot => snapshot.RunId == latestRun.RunId)
+            .OrderByDescending(snapshot => snapshot.Score)
+            .ThenBy(snapshot => snapshot.Symbol)
+            .ToArrayAsync(cancellationToken);
+
+        return new MarketSignalRunResult(
+            EnsureUtc(latestRun.CreatedAtUtc),
+            rows.Select(ToMarketSignal).ToArray());
+    }
+
     private static PersistedSignalSnapshot ToSnapshot(
         Guid runId,
         DateTime createdAtUtc,
@@ -135,6 +162,97 @@ public sealed class EfSignalSnapshotHistoryRepository : ISignalSnapshotHistoryRe
             OpeningRedReversalDetected = signal.OpeningRedReversalDetected,
             OpenGapPercent = signal.OpenGapPercent,
             RecoveryFromLowPercent = signal.RecoveryFromLowPercent
+        };
+    }
+
+    private static MarketSignal ToMarketSignal(PersistedSignalSnapshot snapshot)
+    {
+        return new MarketSignal(
+            snapshot.Symbol,
+            AssetType.Equity,
+            ParseSignalType(snapshot.SignalType),
+            snapshot.Score,
+            snapshot.Setup,
+            snapshot.Reason ?? "Persisted signal snapshot.",
+            snapshot.Action,
+            snapshot.Timeframe ?? "Intraday",
+            snapshot.Confidence,
+            trend: 0m,
+            snapshot.Rsi,
+            snapshot.Ema9,
+            snapshot.Ema20,
+            snapshot.Ema50,
+            atr14: null,
+            averageVolume10: null,
+            averageVolume20: null,
+            aboveVwap: null,
+            snapshot.RelativeStrengthVsSpy,
+            snapshot.RelativeVolume,
+            snapshot.RecoveryFromLowPercent,
+            strongIntradayRecovery: false,
+            gapPercent: null,
+            gapRecovery: false,
+            snapshot.OpeningRedReversalDetected,
+            snapshot.OpenGapPercent,
+            openingRedReversalRecoveryFromLowPercent: null,
+            reclaimOpen: false,
+            reclaimPreviousClose: false,
+            ema20Slope: null,
+            ema50Slope: null,
+            strongTrendSlope: false,
+            snapshot.ExtensionFromEma20Percent,
+            extensionRisk: null,
+            momentumContinuation: snapshot.Setup.Contains("Momentum", StringComparison.OrdinalIgnoreCase),
+            drawdown: null,
+            snapshot.Entry,
+            snapshot.Stop,
+            snapshot.Target,
+            snapshot.Target,
+            takeProfit2: null,
+            takeProfit3: null,
+            riskReward1: null,
+            riskReward2: null,
+            riskReward3: null,
+            riskPerShare: null,
+            maxRiskAmount: null,
+            suggestedPositionSize: null,
+            regimeSizingMultiplier: null,
+            ParseScoreBreakdown(snapshot.ScoreBreakdownJson),
+            EnsureUtc(snapshot.CreatedAtUtc),
+            rawScore: null);
+    }
+
+    private static IReadOnlyCollection<MarketSignalScoreFactor> ParseScoreBreakdown(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<MarketSignalScoreFactor[]>(json, JsonOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static MarketSignalType ParseSignalType(string? value)
+    {
+        return Enum.TryParse<MarketSignalType>(value, ignoreCase: true, out var signalType)
+            ? signalType
+            : MarketSignalType.Neutral;
+    }
+
+    private static DateTime EnsureUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
         };
     }
 }

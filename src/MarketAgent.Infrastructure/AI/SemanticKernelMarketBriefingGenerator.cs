@@ -45,6 +45,11 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
             throw new InvalidOperationException("At least one market snapshot is required to generate a briefing.");
         }
 
+        if (!_options.Enabled)
+        {
+            return BuildDisabledBriefing(signals);
+        }
+
         var chatCompletionService = CreateChatCompletionService();
         var prompt = BuildPrompt(snapshots, signals);
 
@@ -90,6 +95,11 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
 
     private IChatCompletionService CreateChatCompletionService()
     {
+        if (!_options.Enabled)
+        {
+            throw new InvalidOperationException("Azure OpenAI briefing generation is disabled by configuration.");
+        }
+
         if (string.IsNullOrWhiteSpace(_options.Endpoint) ||
             string.IsNullOrWhiteSpace(_options.DeploymentName) ||
             string.IsNullOrWhiteSpace(_options.ApiKey))
@@ -276,6 +286,32 @@ public sealed class SemanticKernelMarketBriefingGenerator : IMarketBriefingGener
                 signal.Timeframe,
                 signal.Confidence))
             .ToArray();
+    }
+
+    private static MarketBriefingResult BuildDisabledBriefing(
+        IReadOnlyCollection<MarketSignal> signals)
+    {
+        var allSignals = BuildAllSignals(signals);
+        var topOpportunities = BuildTopOpportunities(signals);
+        var watchlistPullbacks = BuildWatchlistPullbacks(signals);
+        var topRisks = BuildTopRisks(signals);
+        var watchItems = BuildWatchItems([], signals, topOpportunities, watchlistPullbacks, topRisks);
+        var diagnostics = BuildDiagnostics(signals, allSignals);
+
+        return new MarketBriefingResult(
+            DateTime.UtcNow,
+            "Briefing de IA deshabilitado",
+            "Briefing de IA deshabilitado por configuración.",
+            $"{allSignals.Count} señales calculadas. El resumen de IA está deshabilitado por configuración.",
+            allSignals,
+            topOpportunities,
+            watchlistPullbacks,
+            topRisks,
+            [],
+            [],
+            watchItems,
+            diagnostics,
+            "Briefing de IA deshabilitado por configuración.");
     }
 
     private static IReadOnlyCollection<MarketBriefingPullbackItem> BuildWatchlistPullbacks(

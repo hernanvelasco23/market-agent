@@ -347,6 +347,12 @@ public sealed class MarketSignalServiceTests
             throw new NotSupportedException();
         }
 
+        public Task<MarketSignalRunResult?> GetLatestRunAsync(
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
             Guid signalSnapshotId,
             CancellationToken cancellationToken = default)
@@ -378,6 +384,12 @@ public sealed class MarketSignalServiceTests
 
         public Task<IReadOnlyCollection<AlertEvaluationCandidate>> GetAlertCandidatesAsync(
             int limit,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<MarketSignalRunResult?> GetLatestRunAsync(
             CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();

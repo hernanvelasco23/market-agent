@@ -45,6 +45,14 @@ public sealed class NoOpSignalSnapshotHistoryRepository : ISignalSnapshotHistory
         return Task.FromResult<IReadOnlyCollection<AlertEvaluationCandidate>>([]);
     }
 
+    public Task<MarketSignalRunResult?> GetLatestRunAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult<MarketSignalRunResult?>(null);
+    }
+
     public Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
         Guid signalSnapshotId,
         CancellationToken cancellationToken = default)
