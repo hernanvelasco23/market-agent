@@ -100,20 +100,54 @@ This project is designed as a portfolio piece for agentic AI and backend enginee
 
 ## Current scope
 
-Initial scope includes:
+Current demo scope includes:
 
 - market data ingestion
-- signal detection engine
-- daily briefing generation
-- persistence of snapshots and briefings
+- calibrated signal detection and score attribution
+- persisted market snapshots, signal snapshots, signal outcomes, and alert events
+- dashboard panels for signals, candidate upside ranking, partial outcome metrics, setup analytics, and score/confidence buckets
+- manual and scheduled system cycles
+- email alert digest delivery
+- Spanish user-facing copy for an Argentina / CEDEAR-oriented audience
+- AI briefing generation when Azure OpenAI is configured
 
 Future extensions may include:
 
 - richer technical detectors
-- configurable watchlists
-- email delivery
-- dashboards
+- full i18n support
+- richer CEDEAR-local market data enrichment
+- holiday-aware market-hours scheduling
 - historical briefing analysis
+
+## Demo quick start
+
+1. Configure `src/MarketAgent.Api/appsettings.Development.json` or user secrets:
+   - `ConnectionStrings:DefaultConnection`
+   - optional `AzureOpenAI` values for AI briefings
+   - optional `EmailDelivery` SMTP values for email digest delivery
+2. Apply EF migrations against SQL Server.
+3. Start the API and the Vite frontend.
+4. Run a manual cycle with `POST /api/system/run-cycle`, or run the individual endpoints:
+   - `POST /api/ingestion/run`
+   - `POST /api/signals/run`
+   - `POST /api/signals/outcomes/evaluate`
+   - `POST /api/alerts/evaluate`
+5. Open the dashboard and verify:
+   - signals load without a page refresh
+   - candidate upside ranking is populated when entry/take-profit data exists
+   - outcome/setup/score panels show partial intraday metrics when historical snapshots exist
+   - `GET /api/system/status` reports scheduler and email configuration state
+6. For email demo, run `POST /api/alerts/deliver/email` after alerts exist.
+
+## Deployment checklist
+
+- Keep secrets in environment variables, Azure App Configuration, Key Vault, or user secrets. Do not commit SMTP passwords, API keys, or production connection strings.
+- Set `Cors:AllowedOrigins` to the deployed frontend URL.
+- Set `MarketAgentScheduler:Enabled` only when scheduled cycles are intended.
+- Use `MarketAgentScheduler:MarketHoursOnly=true` for normal demo operation.
+- Configure `EmailDelivery` before enabling scheduled email delivery.
+- Confirm pending migrations are applied before starting the production app.
+- Verify Swagger is only exposed in Development.
 
 ## Disclaimer
 
