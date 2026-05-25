@@ -14,6 +14,7 @@ using MarketAgent.Infrastructure.MarketData;
 using MarketAgent.Infrastructure.Persistence;
 using MarketAgent.Infrastructure.Watchlists;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 const string FrontendCorsPolicy = "MarketAgentFrontend";
@@ -111,6 +112,15 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedProto |
+                            ForwardedHeaders.XForwardedFor
+    });
 }
 
 app.UseHttpsRedirection();
