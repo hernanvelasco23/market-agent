@@ -4,6 +4,8 @@ public sealed class AzureOpenAIOptions
 {
     public const string SectionName = "AzureOpenAI";
 
+    public bool Enabled { get; set; } = false;
+
     public string Endpoint { get; set; } = string.Empty;
 
     public string DeploymentName { get; set; } = string.Empty;

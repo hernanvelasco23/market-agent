@@ -122,6 +122,12 @@ public sealed class ScoreAttributionServiceTests
             throw new NotSupportedException();
         }
 
+        public Task<MarketSignalRunResult?> GetLatestRunAsync(
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
             Guid signalSnapshotId,
             CancellationToken cancellationToken = default)

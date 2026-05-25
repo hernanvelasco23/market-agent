@@ -11,14 +11,15 @@ import type {
   SignalOutcomeSummary,
   SignalPerformancePreviewResult,
   SignalRunResult,
-  SparklinePricesBySymbol
+  SparklinePricesBySymbol,
+  SystemStatus
 } from "./types";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
-  "https://marketagent-api-d6cqe0bncfhyhmh6.eastus-01.azurewebsites.net";
+  (import.meta.env.DEV ? "http://localhost:5215" : "");
 
-  if (import.meta.env.DEV) {
+if (import.meta.env.DEV) {
   console.info(`MarketAgent API base URL: ${API_BASE_URL}`);
 }
 
@@ -30,8 +31,16 @@ export async function runSignals(): Promise<SignalRunResult> {
   return postJson<SignalRunResult>("/api/signals/run");
 }
 
+export async function loadLatestSignals(): Promise<SignalRunResult> {
+  return getJson<SignalRunResult>("/api/signals/latest");
+}
+
 export async function runBriefing(): Promise<BriefingResult> {
   return postJson<BriefingResult>("/api/briefing/run");
+}
+
+export async function loadSystemStatus(): Promise<SystemStatus> {
+  return getJson<SystemStatus>("/api/system/status");
 }
 
 export async function loadHistoricalCandles(days = 60): Promise<HistoricalMarketDataResult> {
@@ -56,23 +65,24 @@ export async function loadSignalOutcomeScoreBuckets(): Promise<SignalOutcomeScor
 
 export async function loadDashboard(): Promise<DashboardState> {
   try {
+    const [signalRun, systemStatus] = await Promise.all([
+      loadLatestSignals(),
+      loadSystemStatus().catch(() => null)
+    ]);
+
     return {
-      briefing: await runBriefing(),
+      briefing: createBriefingFromSignals(signalRun),
+      systemStatus,
       isMock: false
     };
   } catch {
-    try {
-      const signalRun = await runSignals();
-      return {
-        briefing: createBriefingFromSignals(signalRun),
-        isMock: false
-      };
-    } catch {
-      return {
-        briefing: mockBriefing,
-        isMock: true
-      };
-    }
+    const systemStatus = await loadSystemStatus().catch(() => null);
+
+    return {
+      briefing: mockBriefing,
+      systemStatus,
+      isMock: true
+    };
   }
 }
 

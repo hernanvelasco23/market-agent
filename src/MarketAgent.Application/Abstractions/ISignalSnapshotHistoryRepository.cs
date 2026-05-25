@@ -18,6 +18,9 @@ public interface ISignalSnapshotHistoryRepository
         int limit,
         CancellationToken cancellationToken = default);
 
+    Task<MarketSignalRunResult?> GetLatestRunAsync(
+        CancellationToken cancellationToken = default);
+
     Task<ScoreAttributionSnapshot?> GetScoreAttributionSnapshotAsync(
         Guid signalSnapshotId,
         CancellationToken cancellationToken = default);

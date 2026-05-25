@@ -86,6 +86,21 @@ export interface SignalRunResult {
   signals: ApiMarketSignal[];
 }
 
+export interface SystemStatus {
+  schedulerEnabled: boolean;
+  intervalMinutes: number;
+  marketHoursOnly: boolean;
+  emailConfigured: boolean;
+  azureOpenAIEnabled: boolean;
+  azureOpenAIConfigured: boolean;
+  marketStatus: "OPEN" | "CLOSED" | "HOLIDAY" | string;
+  isMarketOpen: boolean;
+  isHoliday: boolean;
+  statusCheckedAtUtc: string;
+  lastCycleRunUtc?: string | null;
+  environmentName: string;
+}
+
 export interface ApiMarketSignal {
   symbol: string;
   score: number;
@@ -255,6 +270,7 @@ export interface SignalOutcomeScoreBucketSummaryItem {
 
 export interface DashboardState {
   briefing: BriefingResult;
+  systemStatus?: SystemStatus | null;
   isMock: boolean;
 }
 
