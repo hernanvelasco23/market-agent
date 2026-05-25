@@ -52,7 +52,12 @@ if (string.IsNullOrWhiteSpace(sqlServerConnectionString))
 else
 {
     builder.Services.AddDbContext<MarketAgentDbContext>(options =>
-        options.UseSqlServer(sqlServerConnectionString));
+        options.UseSqlServer(
+            sqlServerConnectionString,
+            sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure();
+            }));
     builder.Services.AddScoped<IMarketSnapshotRepository, EfMarketSnapshotRepository>();
     builder.Services.AddScoped<ISignalSnapshotHistoryRepository, EfSignalSnapshotHistoryRepository>();
     builder.Services.AddScoped<ISignalOutcomeRepository, EfSignalOutcomeRepository>();
