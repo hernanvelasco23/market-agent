@@ -14,7 +14,11 @@ import type {
   SparklinePricesBySymbol
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_MARKETAGENT_API_BASE_URL ?? "http://localhost:5215";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5215";
+
+if (import.meta.env.DEV) {
+  console.info(`MarketAgent API base URL: ${API_BASE_URL}`);
+}
 
 export async function runIngestion(): Promise<IngestionResult> {
   return postJson<IngestionResult>("/api/ingestion/run");
