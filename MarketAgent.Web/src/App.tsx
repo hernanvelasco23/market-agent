@@ -173,7 +173,7 @@ export function App() {
       await loadDashboardData();
     } catch (error) {
       setStatus({
-        text: error instanceof Error ? error.message : "Fallo el auto-refresh",
+        text: error instanceof Error ? error.message : "Falló el auto-refresh",
         tone: "error"
       });
     } finally {
