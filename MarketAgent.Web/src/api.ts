@@ -14,9 +14,11 @@ import type {
   SparklinePricesBySymbol
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5215";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  "https://marketagent-api-d6cqe0bncfhyhmh6.eastus-01.azurewebsites.net";
 
-if (import.meta.env.DEV) {
+  if (import.meta.env.DEV) {
   console.info(`MarketAgent API base URL: ${API_BASE_URL}`);
 }
 
