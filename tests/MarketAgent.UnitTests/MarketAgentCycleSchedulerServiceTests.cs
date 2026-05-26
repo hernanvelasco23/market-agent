@@ -127,6 +127,7 @@ public sealed class MarketAgentCycleSchedulerRunnerTests
                 emailService ?? new RecordingEmailAlertDeliveryService(),
                 marketHoursService ?? new FixedMarketHoursService(isOpen: true)),
             options,
+            new SchedulerDiagnosticsState(),
             NullLogger<MarketAgentCycleSchedulerRunner>.Instance);
     }
 

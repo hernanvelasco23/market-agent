@@ -84,6 +84,7 @@ builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(EmailDeliveryOptions.SectionName).Get<EmailDeliveryOptions>() ?? new EmailDeliveryOptions());
 builder.Services.AddSingleton(_ =>
     builder.Configuration.GetSection(MarketAgentSchedulerOptions.SectionName).Get<MarketAgentSchedulerOptions>() ?? new MarketAgentSchedulerOptions());
+builder.Services.AddSingleton<ISchedulerDiagnosticsState, SchedulerDiagnosticsState>();
 builder.Services.AddSingleton<IMarketAgentCycleSchedulerRunner, MarketAgentCycleSchedulerRunner>();
 builder.Services.AddHostedService<MarketAgentCycleSchedulerService>();
 builder.Services.Configure<HistoricalMarketDataOptions>(
@@ -111,6 +112,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.Services.GetRequiredService<ISchedulerDiagnosticsState>()
+    .MarkRegistered(app.Services.GetRequiredService<MarketAgentSchedulerOptions>());
 LogStartupConfiguration(app);
 
 if (app.Environment.IsDevelopment())
@@ -267,6 +270,30 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/api/system/scheduler-status",
+    (ISchedulerDiagnosticsState schedulerDiagnosticsState) =>
+    {
+        return Results.Ok(schedulerDiagnosticsState.GetSnapshot());
+    });
+
+app.MapPost(
+    "/api/system/scheduler/run-now",
+    async (
+        IMarketAgentCycleSchedulerRunner schedulerRunner,
+        bool? sendEmail,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await schedulerRunner.RunOnceAsync(
+            new SchedulerRunRequest(
+                BypassEnabled: true,
+                BypassMarketHours: true,
+                RunEmailDelivery: sendEmail ?? false),
+            cancellationToken);
+
+        return Results.Ok(result);
+    });
+
+app.MapGet(
     "/api/alerts",
     async (IAlertEvaluationService alertEvaluationService, int? limit, CancellationToken cancellationToken) =>
     {
@@ -382,7 +409,8 @@ static void LogStartupConfiguration(WebApplication app)
     var azureOpenAIConfigured = IsAzureOpenAIConfigured(azureOpenAIOptions);
 
     app.Logger.LogInformation(
-        "MarketAgentScheduler config. Enabled: {Enabled}. IntervalMinutes: {IntervalMinutes}. RunEmailDelivery: {RunEmailDelivery}. MarketHoursOnly: {MarketHoursOnly}. RunOnStartup: {RunOnStartup}.",
+        "MarketAgentScheduler config. Registered: {Registered}. Enabled: {Enabled}. IntervalMinutes: {IntervalMinutes}. RunEmailDelivery: {RunEmailDelivery}. MarketHoursOnly: {MarketHoursOnly}. RunOnStartup: {RunOnStartup}.",
+        true,
         schedulerOptions.Enabled,
         schedulerOptions.GetSafeIntervalMinutes(),
         schedulerOptions.RunEmailDelivery,

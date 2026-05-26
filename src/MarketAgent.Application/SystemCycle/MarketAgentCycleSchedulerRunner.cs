@@ -10,16 +10,19 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly MarketAgentSchedulerOptions _options;
+    private readonly ISchedulerDiagnosticsState _diagnosticsState;
     private readonly ILogger<MarketAgentCycleSchedulerRunner> _logger;
     private DateTime? _lastClosedMarketLogUtc;
 
     public MarketAgentCycleSchedulerRunner(
         IServiceScopeFactory serviceScopeFactory,
         MarketAgentSchedulerOptions options,
+        ISchedulerDiagnosticsState diagnosticsState,
         ILogger<MarketAgentCycleSchedulerRunner> logger)
     {
         _serviceScopeFactory = serviceScopeFactory;
         _options = options;
+        _diagnosticsState = diagnosticsState;
         _logger = logger;
     }
 
@@ -27,11 +30,26 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
 
     public async Task<SchedulerRunResult> RunOnceAsync(CancellationToken cancellationToken = default)
     {
+        return await RunOnceAsync(
+            new SchedulerRunRequest(
+                BypassEnabled: false,
+                BypassMarketHours: false,
+                RunEmailDelivery: null),
+            cancellationToken);
+    }
+
+    public async Task<SchedulerRunResult> RunOnceAsync(
+        SchedulerRunRequest request,
+        CancellationToken cancellationToken = default)
+    {
         var startedAtUtc = DateTime.UtcNow;
         var stopwatch = Stopwatch.StartNew();
 
-        if (!_options.Enabled)
+        if (!_options.Enabled && !request.BypassEnabled)
         {
+            _diagnosticsState.MarkSkipped("Scheduler is disabled.");
+            _logger.LogInformation("MarketAgent scheduled cycle skipped because scheduler is disabled.");
+
             return new SchedulerRunResult(
                 startedAtUtc,
                 DateTime.UtcNow,
@@ -46,12 +64,13 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
         {
             using var scope = _serviceScopeFactory.CreateScope();
 
-            if (_options.MarketHoursOnly)
+            if (_options.MarketHoursOnly && !request.BypassMarketHours)
             {
                 var marketHoursService = scope.ServiceProvider.GetRequiredService<IMarketHoursService>();
                 if (!marketHoursService.IsMarketOpen(startedAtUtc))
                 {
                     LogMarketClosedSkip(startedAtUtc);
+                    _diagnosticsState.MarkSkipped("Market is closed.");
 
                     return new SchedulerRunResult(
                         startedAtUtc,
@@ -65,6 +84,7 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
             }
 
             _logger.LogInformation("MarketAgent scheduled cycle started at {StartedAtUtc}.", startedAtUtc);
+            _diagnosticsState.MarkCycleStarted(startedAtUtc);
 
             var cycleService = scope.ServiceProvider.GetRequiredService<IManualSystemCycleService>();
             var cycleResult = await cycleService.RunAsync(
@@ -72,8 +92,9 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
                 cancellationToken);
 
             var emailDeliveryExecuted = false;
+            var shouldRunEmailDelivery = request.RunEmailDelivery ?? _options.RunEmailDelivery;
 
-            if (cycleResult.OverallSuccess && _options.RunEmailDelivery)
+            if (cycleResult.OverallSuccess && shouldRunEmailDelivery)
             {
                 _logger.LogInformation("MarketAgent scheduled email delivery started after successful cycle.");
 
@@ -90,7 +111,7 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
                     emailResult.DeliveredCount,
                     emailResult.FailedCount);
             }
-            else if (!cycleResult.OverallSuccess && _options.RunEmailDelivery)
+            else if (!cycleResult.OverallSuccess && shouldRunEmailDelivery)
             {
                 _logger.LogInformation("MarketAgent scheduled email delivery skipped because cycle did not succeed.");
             }
@@ -105,6 +126,7 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
                 cycleResult.FailedStepName);
 
             LastCycleRunUtc = DateTime.UtcNow;
+            _diagnosticsState.MarkCycleFinished(LastCycleRunUtc.Value, cycleResult.OverallSuccess);
 
             return new SchedulerRunResult(
                 startedAtUtc,
@@ -119,6 +141,7 @@ public sealed class MarketAgentCycleSchedulerRunner : IMarketAgentCycleScheduler
         {
             stopwatch.Stop();
             _logger.LogError(exception, "MarketAgent scheduled cycle failed after {DurationMs} ms.", stopwatch.ElapsedMilliseconds);
+            _diagnosticsState.MarkError(exception.Message);
 
             return new SchedulerRunResult(
                 startedAtUtc,
