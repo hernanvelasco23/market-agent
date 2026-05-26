@@ -227,6 +227,8 @@ export function App() {
         watchItems: current?.watchItems ?? []
       }));
       setLastSignalsGeneratedAt(new Date(result.generatedAtUtc));
+      await loadDashboardData();
+      return;
       setSelectedSymbol(all[0]?.symbol ?? null);
       await Promise.all([
         refreshSparklines(),
@@ -370,13 +372,17 @@ export function App() {
 
       <section className="status-row">
         <span className={`status ${status.tone}`}>{status.text}</span>
+        <span className={systemStatus ? "status ok" : "status warn"}>
+          {systemStatus ? "API connected" : "API offline"}
+        </span>
         <span className="status ok">Auto-refresh activo</span>
         <span className={getMarketStatusClassName(systemStatus)}>{getMarketStatusLabel(systemStatus)}</span>
         {lastUpdatedAt ? <span className="timestamp">Última actualización {formatDateTime(lastUpdatedAt)}</span> : null}
         {lastSignalsGeneratedAt ? <span className="timestamp">Últimas señales {formatDateTime(lastSignalsGeneratedAt)}</span> : null}
         {lastAIBriefingAt ? <span className="timestamp">Último briefing IA {formatDateTime(lastAIBriefingAt)}</span> : null}
+        {systemStatus?.lastCycleRunUtc ? <span className="timestamp">Scheduler {formatDate(systemStatus.lastCycleRunUtc)}</span> : null}
         {usingMock ? <span className="status warn">Vista previa</span> : null}
-        {briefing ? <span className="timestamp">Generado {formatDate(briefing.generatedAtUtc)}</span> : null}
+        {briefing ? <span className="timestamp">Última señal {formatDate(briefing.generatedAtUtc)}</span> : null}
       </section>
 
       <p className="cost-awareness-note">Signals refresh automatically from persisted market snapshots. AI generation is manual.</p>
