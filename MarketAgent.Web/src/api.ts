@@ -9,6 +9,7 @@ import type {
   SignalOutcomeScoreBucketSummary,
   SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
+  SignalOutcomeItem,
   SignalPerformancePreviewResult,
   SignalRunResult,
   SparklinePricesBySymbol,
@@ -33,6 +34,10 @@ export async function runSignals(): Promise<SignalRunResult> {
 
 export async function loadLatestSignals(): Promise<SignalRunResult> {
   return getJson<SignalRunResult>("/api/signals/latest");
+}
+
+export async function loadSignalOutcomes(limit = 200): Promise<SignalOutcomeItem[]> {
+  return getJson<SignalOutcomeItem[]>(`/api/signals/outcomes?limit=${limit}`);
 }
 
 export async function runBriefing(): Promise<BriefingResult> {
@@ -64,19 +69,23 @@ export async function loadSignalOutcomeScoreBuckets(): Promise<SignalOutcomeScor
 }
 
 export async function loadDashboard(): Promise<DashboardState> {
-  try {
-    const [signalRun, systemStatus] = await Promise.all([
-      loadLatestSignals(),
-      loadSystemStatus().catch(() => null)
-    ]);
+  const systemStatus = await loadSystemStatus().catch(() => null);
 
+  try {
+    const outcomes = await loadSignalOutcomes();
     return {
-      briefing: createBriefingFromSignals(signalRun),
+      briefing: createBriefingFromOutcomes(outcomes),
       systemStatus,
       isMock: false
     };
   } catch {
-    const systemStatus = await loadSystemStatus().catch(() => null);
+    if (systemStatus) {
+      return {
+        briefing: createBriefingFromOutcomes([]),
+        systemStatus,
+        isMock: false
+      };
+    }
 
     return {
       briefing: mockBriefing,
@@ -143,6 +152,85 @@ function createBriefingFromSignals(result: SignalRunResult): BriefingResult {
       .filter((signal) => !topOpportunities.includes(signal) && !watchlistPullbacks.includes(signal) && !topRisks.includes(signal))
       .map((signal) => `${signal.symbol}: ${signal.reason}`)
   };
+}
+
+function createBriefingFromOutcomes(outcomes: SignalOutcomeItem[]): BriefingResult {
+  const latestBySymbol = Array.from(
+    outcomes
+      .slice()
+      .sort((left, right) => Date.parse(right.signalCreatedAtUtc) - Date.parse(left.signalCreatedAtUtc))
+      .reduce<Map<string, SignalOutcomeItem>>((items, outcome) => {
+        const symbol = outcome.symbol.toUpperCase();
+        if (!items.has(symbol)) {
+          items.set(symbol, outcome);
+        }
+
+        return items;
+      }, new Map())
+      .values()
+  );
+  const allSignals = latestBySymbol.map(toDashboardSignalFromOutcome);
+  const generatedAtUtc = latestBySymbol
+    .map((outcome) => outcome.signalCreatedAtUtc)
+    .sort((left, right) => Date.parse(right) - Date.parse(left))[0] ?? new Date().toISOString();
+  const topOpportunities = allSignals.filter(
+    (signal) => signal.score >= 60 && signal.action === "Candidate" && ["Medium", "High"].includes(signal.confidence)
+  );
+  const watchlistPullbacks = allSignals.filter(
+    (signal) => signal.setupType === "Pullback" || signal.action.startsWith("Watch")
+  );
+  const topRisks = allSignals.filter((signal) => signal.score < 40 || signal.action === "Avoid / high risk");
+
+  return {
+    generatedAtUtc,
+    marketRegime: "API connected",
+    summary: allSignals.length === 0
+      ? "API conectada. Todavía no hay señales persistidas para mostrar."
+      : "Señales persistidas cargadas desde outcomes. La generación de IA es manual.",
+    signalSummary: `${allSignals.length} señales persistidas cargadas desde /api/signals/outcomes.`,
+    allSignals,
+    topOpportunities,
+    watchlistPullbacks,
+    topRisks,
+    highlights: [],
+    risks: [],
+    watchItems: allSignals
+      .filter((signal) => !topOpportunities.includes(signal) && !watchlistPullbacks.includes(signal) && !topRisks.includes(signal))
+      .map((signal) => `${signal.symbol}: ${signal.reason}`)
+  };
+}
+
+function toDashboardSignalFromOutcome(outcome: SignalOutcomeItem): DashboardSignal {
+  return {
+    symbol: outcome.symbol,
+    score: outcome.score,
+    setupType: outcome.setup || "Unknown",
+    action: outcome.action,
+    timeframe: "Persisted",
+    confidence: outcome.confidence,
+    reason: buildOutcomeReason(outcome),
+    entry: outcome.priceAtSignal ?? null,
+    target: outcome.priceAfter1Day ?? outcome.priceAfter4Hours ?? outcome.priceAfter1Hour ?? outcome.priceAfter15Minutes ?? null,
+    takeProfit1: outcome.priceAfter15Minutes ?? null,
+    takeProfit2: outcome.priceAfter1Hour ?? null,
+    takeProfit3: outcome.priceAfter4Hours ?? outcome.priceAfter1Day ?? null,
+    recoveryFromLowPercent: outcome.maxRunupPercent ?? null,
+    distanceFromEma20Percent: outcome.maxDrawdownPercent ?? null,
+    extensionFromEma20Percent: outcome.maxRunupPercent ?? null,
+    scoreBreakdown: []
+  };
+}
+
+function buildOutcomeReason(outcome: SignalOutcomeItem) {
+  const pieces = [
+    `Persisted signal from ${new Date(outcome.signalCreatedAtUtc).toLocaleString()}`,
+    outcome.evaluationStatus ? `status ${outcome.evaluationStatus}` : null,
+    outcome.priceAfter15Minutes != null ? `15m ${outcome.priceAfter15Minutes.toFixed(2)}` : null,
+    outcome.priceAfter1Hour != null ? `1h ${outcome.priceAfter1Hour.toFixed(2)}` : null,
+    outcome.outcomePercent != null ? `outcome ${outcome.outcomePercent.toFixed(2)}%` : null
+  ].filter(Boolean);
+
+  return pieces.join("; ");
 }
 
 async function getJson<T>(path: string): Promise<T> {

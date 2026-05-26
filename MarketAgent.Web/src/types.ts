@@ -217,6 +217,29 @@ export interface SignalOutcomeSummary {
   worst15mReturnPercent?: number | null;
 }
 
+export interface SignalOutcomeItem {
+  signalSnapshotId: string;
+  signalCreatedAtUtc: string;
+  runId: string;
+  symbol: string;
+  setup: string;
+  action: SignalAction;
+  score: number;
+  confidence: string;
+  evaluatedAtUtc?: string | null;
+  evaluationStatus?: string | null;
+  priceAtSignal?: number | null;
+  priceAfter15Minutes?: number | null;
+  priceAfter1Hour?: number | null;
+  priceAfter4Hours?: number | null;
+  priceAfter1Day?: number | null;
+  maxRunupPercent?: number | null;
+  maxDrawdownPercent?: number | null;
+  outcomePercent?: number | null;
+  isSuccessful?: boolean | null;
+  failureReason?: string | null;
+}
+
 export interface SignalOutcomeSetupSummary {
   generatedAtUtc: string;
   totalSetupCount: number;
