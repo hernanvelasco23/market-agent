@@ -710,14 +710,14 @@ function metricTone(value: number | null | undefined, kind: "rs" | "rvol" | "ext
 
 function getMarketStatusLabel(status: SystemStatus | null) {
   if (status?.isHoliday || status?.marketStatus === "HOLIDAY") {
-    return "Holiday / No Live Market Data";
+    return "Feriado / sin datos live";
   }
 
   if (status?.isMarketOpen || status?.marketStatus === "OPEN") {
-    return "Market Open";
+    return "Mercado abierto";
   }
 
-  return "Market Closed";
+  return "Mercado cerrado (auto-cycle pausado)";
 }
 
 function getMarketStatusClassName(status: SystemStatus | null) {

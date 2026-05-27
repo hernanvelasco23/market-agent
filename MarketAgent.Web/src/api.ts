@@ -18,7 +18,7 @@ import type {
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
-  (import.meta.env.DEV ? "https://marketagent-api-d6cqe0bncfhyhmh6.eastus-01.azurewebsites.net" : "");
+  (import.meta.env.DEV ? "http://localhost:5215" : "");
 
 if (import.meta.env.DEV) {
   console.info(`MarketAgent API base URL: ${API_BASE_URL}`);
@@ -209,14 +209,24 @@ function toDashboardSignalFromOutcome(outcome: SignalOutcomeItem): DashboardSign
     timeframe: "Persisted",
     confidence: outcome.confidence,
     reason: buildOutcomeReason(outcome),
-    entry: outcome.priceAtSignal ?? null,
-    target: outcome.priceAfter1Day ?? outcome.priceAfter4Hours ?? outcome.priceAfter1Hour ?? outcome.priceAfter15Minutes ?? null,
-    takeProfit1: outcome.priceAfter15Minutes ?? null,
-    takeProfit2: outcome.priceAfter1Hour ?? null,
-    takeProfit3: outcome.priceAfter4Hours ?? outcome.priceAfter1Day ?? null,
+    relativeStrengthVsSpy: outcome.relativeStrengthVsSpy ?? null,
+    relativeVolume: outcome.relativeVolume ?? null,
+    extensionFromEma20Percent: outcome.extensionFromEma20Percent ?? null,
+    rsi14: outcome.rsi ?? null,
+    ema9: outcome.ema9 ?? null,
+    ema20: outcome.ema20 ?? null,
+    ema50: outcome.ema50 ?? null,
+    entry: outcome.entry ?? outcome.priceAtSignal ?? null,
+    stop: outcome.stop ?? null,
+    target: outcome.target ?? null,
+    takeProfit1: outcome.takeProfit1 ?? outcome.target ?? null,
+    takeProfit2: outcome.takeProfit2 ?? null,
+    takeProfit3: outcome.takeProfit3 ?? null,
+    riskReward1: outcome.riskReward1 ?? null,
+    riskReward2: outcome.riskReward2 ?? null,
+    riskReward3: outcome.riskReward3 ?? null,
     recoveryFromLowPercent: outcome.maxRunupPercent ?? null,
-    distanceFromEma20Percent: outcome.maxDrawdownPercent ?? null,
-    extensionFromEma20Percent: outcome.maxRunupPercent ?? null,
+    distanceFromEma20Percent: outcome.extensionFromEma20Percent ?? null,
     scoreBreakdown: []
   };
 }

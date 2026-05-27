@@ -334,6 +334,24 @@ app.MapGet(
     });
 
 app.MapGet(
+    "/api/signals/outcomes/profit-diagnostics",
+    async (
+        ISignalOutcomeService signalOutcomeService,
+        string? symbol,
+        string? status,
+        bool? isSuccessful,
+        int? days,
+        int? limit,
+        CancellationToken cancellationToken) =>
+    {
+        var outcomes = await signalOutcomeService.GetOutcomesAsync(
+            new SignalOutcomeQuery(symbol, status, isSuccessful, days, limit),
+            cancellationToken);
+
+        return Results.Ok(BuildCandidateProfitDiagnostics(outcomes));
+    });
+
+app.MapGet(
     "/api/signals/outcomes/summary",
     async (
         ISignalOutcomeService signalOutcomeService,
@@ -462,4 +480,96 @@ static bool IsAzureOpenAIConfigured(AzureOpenAIOptions options)
     return !string.IsNullOrWhiteSpace(options.Endpoint)
         && !string.IsNullOrWhiteSpace(options.DeploymentName)
         && !string.IsNullOrWhiteSpace(options.ApiKey);
+}
+
+static object BuildCandidateProfitDiagnostics(IReadOnlyCollection<SignalOutcomeItem> outcomes)
+{
+    var skippedReasons = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    var candidateCount = 0;
+    var candidatesWithEntry = 0;
+    var candidatesWithTakeProfit = 0;
+    var candidatesWithUpside = 0;
+
+    foreach (var outcome in outcomes)
+    {
+        if (!string.Equals(outcome.Action, "Candidate", StringComparison.OrdinalIgnoreCase))
+        {
+            Increment(skippedReasons, "notCandidate");
+            continue;
+        }
+
+        candidateCount++;
+
+        if (outcome.Entry is not > 0m)
+        {
+            Increment(skippedReasons, "missingEntry");
+            continue;
+        }
+
+        candidatesWithEntry++;
+
+        var selectedTakeProfit = SelectCandidateTakeProfit(outcome);
+        if (selectedTakeProfit is null)
+        {
+            Increment(skippedReasons, "missingValidTakeProfit");
+            continue;
+        }
+
+        candidatesWithTakeProfit++;
+
+        if (selectedTakeProfit > outcome.Entry)
+        {
+            candidatesWithUpside++;
+        }
+    }
+
+    return new
+    {
+        totalSignalsEvaluated = outcomes.Count,
+        candidateCount,
+        candidatesWithEntry,
+        candidatesWithTakeProfit,
+        candidatesWithUpside,
+        skippedReasons
+    };
+}
+
+static decimal? SelectCandidateTakeProfit(SignalOutcomeItem outcome)
+{
+    if (outcome.Entry is not > 0m)
+    {
+        return null;
+    }
+
+    var candidates = new[]
+    {
+        (TakeProfit: outcome.TakeProfit2, RiskReward: outcome.RiskReward2),
+        (TakeProfit: outcome.TakeProfit1, RiskReward: outcome.RiskReward1),
+        (TakeProfit: outcome.TakeProfit3, RiskReward: outcome.RiskReward3),
+        (TakeProfit: outcome.Target, RiskReward: (decimal?)null)
+    };
+
+    foreach (var candidate in candidates)
+    {
+        if (candidate.TakeProfit is not > 0m || candidate.TakeProfit <= outcome.Entry)
+        {
+            continue;
+        }
+
+        if (candidate.RiskReward is not null && candidate.RiskReward < 1m)
+        {
+            continue;
+        }
+
+        return candidate.TakeProfit;
+    }
+
+    return null;
+}
+
+static void Increment(IDictionary<string, int> values, string key)
+{
+    values[key] = values.TryGetValue(key, out var current)
+        ? current + 1
+        : 1;
 }
