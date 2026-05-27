@@ -23,7 +23,7 @@ export function TopProfitOpportunitiesPanel({
       {opportunities.length === 0 ? (
         <div className="performance-empty neutral">
           <Target size={16} />
-          <span>No hay candidatos con entrada, objetivo y riesgo/beneficio válidos.</span>
+          <span>No hay candidatos con entrada y take profit calculados.</span>
         </div>
       ) : (
         <div className="profit-ranking-list">

@@ -105,6 +105,28 @@ public sealed class EfSignalOutcomeRepository : ISignalOutcomeRepository
                 row.Snapshot.Action,
                 row.Snapshot.Score,
                 row.Snapshot.Confidence,
+                row.Snapshot.RelativeStrengthVsSpy,
+                row.Snapshot.RelativeVolume,
+                row.Snapshot.ExtensionFromEma20Percent,
+                row.Snapshot.Ema9,
+                row.Snapshot.Ema20,
+                row.Snapshot.Ema50,
+                row.Snapshot.Rsi,
+                row.Snapshot.Entry,
+                row.Snapshot.Stop,
+                row.Snapshot.Target,
+                row.Snapshot.Target,
+                null,
+                null,
+                null,
+                null,
+                null,
+                CalculatePotentialUpsidePercent(
+                    row.Snapshot.Entry,
+                    row.Snapshot.Target,
+                    null,
+                    null,
+                    row.Snapshot.Target),
                 row.Outcome == null ? null : row.Outcome.EvaluatedAtUtc,
                 row.Outcome == null ? null : row.Outcome.EvaluationStatus,
                 row.Outcome == null ? null : row.Outcome.PriceAtSignal,
@@ -118,6 +140,26 @@ public sealed class EfSignalOutcomeRepository : ISignalOutcomeRepository
                 row.Outcome == null ? null : row.Outcome.IsSuccessful,
                 row.Outcome == null ? null : row.Outcome.FailureReason))
             .ToArrayAsync(cancellationToken);
+    }
+
+    private static decimal? CalculatePotentialUpsidePercent(
+        decimal? entry,
+        decimal? takeProfit1,
+        decimal? takeProfit2,
+        decimal? takeProfit3,
+        decimal? target)
+    {
+        if (entry is not > 0m)
+        {
+            return null;
+        }
+
+        var selectedTakeProfit = new[] { takeProfit2, takeProfit1, takeProfit3, target }
+            .FirstOrDefault(value => value is > 0m && value > entry);
+
+        return selectedTakeProfit is null
+            ? null
+            : Math.Round(((selectedTakeProfit.Value - entry.Value) / entry.Value) * 100m, 2, MidpointRounding.AwayFromZero);
     }
 
     private static PersistedSignalOutcome ToEntity(SignalOutcomeRecord outcome)
