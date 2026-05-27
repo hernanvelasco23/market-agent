@@ -15,53 +15,52 @@ import type {
   SparklinePricesBySymbol,
   SystemStatus
 } from "./types";
+import { API_BASE_URL, buildApiUrl } from "./config/api";
 
-const API_BASE_URL = "https://marketagent-api-d6cqe0bncfhyhmh6.eastus-01.azurewebsites.net";
-
-console.info("MarketAgent API_BASE_URL", API_BASE_URL);
+console.info("[MarketAgent] API base URL:", API_BASE_URL);
 
 export async function runIngestion(): Promise<IngestionResult> {
-  return postJson<IngestionResult>("/api/ingestion/run");
+  return postJson<IngestionResult>("ingestion/run");
 }
 
 export async function runSignals(): Promise<SignalRunResult> {
-  return postJson<SignalRunResult>("/api/signals/run");
+  return postJson<SignalRunResult>("signals/run");
 }
 
 export async function loadLatestSignals(): Promise<SignalRunResult> {
-  return getJson<SignalRunResult>("/api/signals/latest");
+  return getJson<SignalRunResult>("signals/latest");
 }
 
 export async function loadSignalOutcomes(limit = 200): Promise<SignalOutcomeItem[]> {
-  return getJson<SignalOutcomeItem[]>(`/api/signals/outcomes?limit=${limit}`);
+  return getJson<SignalOutcomeItem[]>(`signals/outcomes?limit=${limit}`);
 }
 
 export async function runBriefing(): Promise<BriefingResult> {
-  return postJson<BriefingResult>("/api/briefing/run");
+  return postJson<BriefingResult>("briefing/run");
 }
 
 export async function loadSystemStatus(): Promise<SystemStatus> {
-  return getJson<SystemStatus>("/api/system/status");
+  return getJson<SystemStatus>("system/status");
 }
 
 export async function loadHistoricalCandles(days = 60): Promise<HistoricalMarketDataResult> {
-  return getJson<HistoricalMarketDataResult>(`/api/historical/candles?days=${days}`);
+  return getJson<HistoricalMarketDataResult>(`historical/candles?days=${days}`);
 }
 
 export async function loadSignalPerformancePreview(days = 180): Promise<SignalPerformancePreviewResult> {
-  return getJson<SignalPerformancePreviewResult>(`/api/signals/performance-preview?days=${days}`);
+  return getJson<SignalPerformancePreviewResult>(`signals/performance-preview?days=${days}`);
 }
 
 export async function loadSignalOutcomeSummary(): Promise<SignalOutcomeSummary> {
-  return getJson<SignalOutcomeSummary>("/api/signals/outcomes/summary");
+  return getJson<SignalOutcomeSummary>("signals/outcomes/summary");
 }
 
 export async function loadSignalOutcomeSetupSummary(): Promise<SignalOutcomeSetupSummary> {
-  return getJson<SignalOutcomeSetupSummary>("/api/signals/outcomes/setup-summary");
+  return getJson<SignalOutcomeSetupSummary>("signals/outcomes/setup-summary");
 }
 
 export async function loadSignalOutcomeScoreBuckets(): Promise<SignalOutcomeScoreBucketSummary> {
-  return getJson<SignalOutcomeScoreBucketSummary>("/api/signals/outcomes/score-buckets");
+  return getJson<SignalOutcomeScoreBucketSummary>("signals/outcomes/score-buckets");
 }
 
 export async function loadDashboard(): Promise<DashboardState> {
@@ -183,7 +182,7 @@ function createBriefingFromOutcomes(outcomes: SignalOutcomeItem[]): BriefingResu
     summary: allSignals.length === 0
       ? "API conectada. Todavía no hay señales persistidas para mostrar."
       : "Señales persistidas cargadas desde outcomes. La generación de IA es manual.",
-    signalSummary: `${allSignals.length} señales persistidas cargadas desde /api/signals/outcomes.`,
+    signalSummary: `${allSignals.length} señales persistidas cargadas desde outcomes.`,
     allSignals,
     topOpportunities,
     watchlistPullbacks,
@@ -240,7 +239,7 @@ function buildOutcomeReason(outcome: SignalOutcomeItem) {
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     headers: {
       Accept: "application/json"
     }
@@ -254,7 +253,7 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 async function postJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     method: "POST",
     headers: {
       Accept: "application/json"
