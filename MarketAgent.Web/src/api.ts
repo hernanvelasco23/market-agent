@@ -6,6 +6,7 @@ import type {
   HistoricalCandle,
   HistoricalMarketDataResult,
   IngestionResult,
+  MarketSnapshotDto,
   SignalOutcomeScoreBucketSummary,
   SignalOutcomeSetupSummary,
   SignalOutcomeSummary,
@@ -13,7 +14,9 @@ import type {
   SignalPerformancePreviewResult,
   SignalRunResult,
   SparklinePricesBySymbol,
-  SystemStatus
+  SystemStatus,
+  WatchlistHydrationRequest,
+  WatchlistHydrationResult
 } from "./types";
 import { API_BASE_URL, buildApiUrl } from "./config/api";
 
@@ -27,8 +30,16 @@ export async function runSignals(): Promise<SignalRunResult> {
   return postJson<SignalRunResult>("signals/run");
 }
 
+export async function hydrateWatchlist(request: WatchlistHydrationRequest): Promise<WatchlistHydrationResult> {
+  return postJson<WatchlistHydrationResult>("watchlist/hydrate", request);
+}
+
 export async function loadLatestSignals(): Promise<SignalRunResult> {
   return getJson<SignalRunResult>("signals/latest");
+}
+
+export async function loadMarketSnapshots(): Promise<MarketSnapshotDto[]> {
+  return getJson<MarketSnapshotDto[]>("ingestion/snapshots");
 }
 
 export async function loadSignalOutcomes(limit = 200): Promise<SignalOutcomeItem[]> {
@@ -93,6 +104,7 @@ export async function loadDashboard(): Promise<DashboardState> {
 export function toDashboardSignal(signal: ApiMarketSignal): DashboardSignal {
   return {
     ...signal,
+    currentPrice: signal.currentPrice ?? signal.entry ?? null,
     rsi14: signal.rsi,
     extensionFromEma20Percent: signal.extensionFromEma20Percent ?? signal.distanceFromEma20Percent,
     scoreBreakdown: signal.scoreBreakdown ?? []
@@ -204,6 +216,7 @@ function toDashboardSignalFromOutcome(outcome: SignalOutcomeItem): DashboardSign
     timeframe: "Persisted",
     confidence: outcome.confidence,
     reason: buildOutcomeReason(outcome),
+    currentPrice: outcome.currentPrice ?? outcome.priceAtSignal ?? outcome.entry ?? null,
     relativeStrengthVsSpy: outcome.relativeStrengthVsSpy ?? null,
     relativeVolume: outcome.relativeVolume ?? null,
     extensionFromEma20Percent: outcome.extensionFromEma20Percent ?? null,
@@ -252,12 +265,14 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function postJson<T>(path: string): Promise<T> {
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(buildApiUrl(path), {
     method: "POST",
     headers: {
-      Accept: "application/json"
-    }
+      Accept: "application/json",
+      ...(body == null ? {} : { "Content-Type": "application/json" })
+    },
+    body: body == null ? undefined : JSON.stringify(body)
   });
 
   if (!response.ok) {

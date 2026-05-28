@@ -394,6 +394,7 @@ public sealed class SignalOutcomeServiceTests
             "Candidate",
             score,
             confidence,
+            priceAtSignal,
             2.4m,
             1.8m,
             4.2m,

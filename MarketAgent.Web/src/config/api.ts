@@ -1,6 +1,5 @@
 export const API_BASE_URL =
-  "https://marketagent-api-d6cqe0bncfhyhmh6.eastus-01.azurewebsites.net";
-
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5215";
 const API_PATH_PREFIX = "/api";
 
 export const buildApiUrl = (path: string) => {

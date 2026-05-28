@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSparklinePricesBySymbol,
+  hydrateWatchlist,
   loadDashboard,
   loadHistoricalCandles,
+  loadMarketSnapshots,
   loadSignalOutcomeScoreBuckets,
   loadSignalOutcomeSetupSummary,
   loadSignalOutcomeSummary,
@@ -14,7 +16,11 @@ import {
   toDashboardSignal
 } from "./api";
 import { deriveDashboardAlerts } from "./alerts";
+import type { DashboardSectionId } from "./collapsibleSections";
+import { loadCollapsedSections, saveCollapsedSections } from "./collapsibleSections";
 import { AlertCenter } from "./components/AlertCenter";
+import { CollapsibleSection } from "./components/CollapsibleSection";
+import { MyWatchlistPanel, type WatchlistSymbolState } from "./components/MyWatchlistPanel";
 import { ScoreConfidencePerformancePanel } from "./components/ScoreConfidencePerformancePanel";
 import { SignalFilterBar } from "./components/SignalFilterBar";
 import { SignalDetailPanel } from "./components/SignalDetailPanel";
@@ -23,12 +29,12 @@ import { SignalPerformancePreviewPanel } from "./components/SignalPerformancePre
 import { SetupPerformancePanel } from "./components/SetupPerformancePanel";
 import { Sparkline } from "./components/Sparkline";
 import { TopProfitOpportunitiesPanel } from "./components/TopProfitOpportunitiesPanel";
-import { WatchlistSelector } from "./components/WatchlistSelector";
 import { formatActionLabel, formatConfidenceLabel } from "./displayLabels";
 import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasActiveSignalFilters } from "./signalFilters";
 import type {
   BriefingResult,
   DashboardSignal,
+  MarketSnapshotDto,
   SignalFilters,
   SignalOutcomeScoreBucketSummary,
   SignalOutcomeSetupSummary,
@@ -36,9 +42,14 @@ import type {
   SignalPerformancePreviewResult,
   SparklinePricesBySymbol,
   SystemStatus,
-  Watchlist
+  WatchlistHydrationResult
 } from "./types";
-import { allSignalsWatchlist, applyWatchlistFilter, getAllWatchlists, loadCustomWatchlists, saveCustomWatchlists } from "./watchlists";
+import {
+  addWatchlistSymbol,
+  loadUserWatchlist,
+  removeWatchlistSymbol,
+  saveUserWatchlist
+} from "./userWatchlist";
 
 type Status = {
   text: string;
@@ -66,9 +77,12 @@ export function App() {
   const [scoreBucketSummaryLoading, setScoreBucketSummaryLoading] = useState(false);
   const [scoreBucketSummaryUnavailable, setScoreBucketSummaryUnavailable] = useState(false);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [marketSnapshots, setMarketSnapshots] = useState<MarketSnapshotDto[]>([]);
   const [filters, setFilters] = useState<SignalFilters>(defaultSignalFilters);
-  const [customWatchlists, setCustomWatchlists] = useState<Watchlist[]>(() => loadCustomWatchlists());
-  const [activeWatchlistId, setActiveWatchlistId] = useState(allSignalsWatchlist.id);
+  const [userWatchlistSymbols, setUserWatchlistSymbols] = useState<string[]>(() => loadUserWatchlist());
+  const [watchlistHydrationResult, setWatchlistHydrationResult] = useState<WatchlistHydrationResult | null>(null);
+  const [watchlistHydrationLoading, setWatchlistHydrationLoading] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState(() => loadCollapsedSections());
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [lastSignalsGeneratedAt, setLastSignalsGeneratedAt] = useState<Date | null>(null);
   const [lastAIBriefingAt, setLastAIBriefingAt] = useState<Date | null>(null);
@@ -76,30 +90,111 @@ export function App() {
   const manualActionInFlight = useRef(false);
 
   const allSignals = briefing?.allSignals ?? [];
-  const watchlists = useMemo(() => getAllWatchlists(customWatchlists), [customWatchlists]);
-  const activeWatchlist = watchlists.find((watchlist) => watchlist.id === activeWatchlistId) ?? allSignalsWatchlist;
-  const watchlistSignals = useMemo(() => applyWatchlistFilter(allSignals, activeWatchlist), [allSignals, activeWatchlist]);
+  const userWatchlistSet = useMemo(() => new Set(userWatchlistSymbols), [userWatchlistSymbols]);
+  const latestSnapshotsBySymbol = useMemo(() => {
+    return marketSnapshots.reduce<Map<string, MarketSnapshotDto>>((items, snapshot) => {
+      const symbol = snapshot.symbol.toUpperCase();
+      const current = items.get(symbol);
+      if (current == null || Date.parse(snapshot.capturedAtUtc) > Date.parse(current.capturedAtUtc)) {
+        items.set(symbol, snapshot);
+      }
+
+      return items;
+    }, new Map());
+  }, [marketSnapshots]);
+  const hydrationResultsBySymbol = useMemo(() => {
+    return new Map(
+      (watchlistHydrationResult?.results ?? []).map((item) => [item.symbol.toUpperCase(), item])
+    );
+  }, [watchlistHydrationResult]);
+  const watchlistSignals = useMemo(
+    () => allSignals.filter((signal) => userWatchlistSet.has(signal.symbol.toUpperCase())),
+    [allSignals, userWatchlistSet]
+  );
   const alerts = useMemo(() => deriveDashboardAlerts(watchlistSignals), [watchlistSignals]);
   const setupTypes = useMemo(() => getAvailableSetupTypes(watchlistSignals), [watchlistSignals]);
   const filteredSignals = useMemo(() => applySignalFilters(watchlistSignals, filters), [watchlistSignals, filters]);
   const hasActiveFilters = hasActiveSignalFilters(filters);
   const topOpportunities = useMemo(
-    () => applyWatchlistFilter(briefing?.topOpportunities ?? [], activeWatchlist),
-    [briefing?.topOpportunities, activeWatchlist]
+    () => (briefing?.topOpportunities ?? []).filter((signal) => userWatchlistSet.has(signal.symbol.toUpperCase())),
+    [briefing?.topOpportunities, userWatchlistSet]
   );
   const watchlistPullbacks = useMemo(
-    () => applyWatchlistFilter(briefing?.watchlistPullbacks ?? [], activeWatchlist),
-    [briefing?.watchlistPullbacks, activeWatchlist]
+    () => (briefing?.watchlistPullbacks ?? []).filter((signal) => userWatchlistSet.has(signal.symbol.toUpperCase())),
+    [briefing?.watchlistPullbacks, userWatchlistSet]
   );
   const topRisks = useMemo(
-    () => applyWatchlistFilter(briefing?.topRisks ?? [], activeWatchlist),
-    [briefing?.topRisks, activeWatchlist]
+    () => (briefing?.topRisks ?? []).filter((signal) => userWatchlistSet.has(signal.symbol.toUpperCase())),
+    [briefing?.topRisks, userWatchlistSet]
   );
   const selectedSignal = useMemo(
     () => filteredSignals.find((signal) => signal.symbol === selectedSymbol) ?? filteredSignals[0] ?? null,
     [filteredSignals, selectedSymbol]
   );
   const aiBriefingDisabled = systemStatus?.azureOpenAIEnabled !== true;
+  const watchlistSymbolStates = useMemo<Record<string, WatchlistSymbolState>>(() => {
+    return Object.fromEntries(
+      userWatchlistSymbols.map((symbol) => {
+        const normalizedSymbol = symbol.toUpperCase();
+        const signal = watchlistSignals.find((item) => item.symbol.toUpperCase() === normalizedSymbol);
+        const snapshot = latestSnapshotsBySymbol.get(normalizedSymbol);
+        const hydration = hydrationResultsBySymbol.get(normalizedSymbol);
+        const currentPrice = signal?.currentPrice ?? snapshot?.price ?? hydration?.currentPrice ?? null;
+
+        if (signal != null) {
+          return [normalizedSymbol, {
+            label: "Setup activo",
+            tone: "active",
+            currentPrice,
+            description: signal.setupType
+          }];
+        }
+
+        if (hydration?.status === "NoData") {
+          return [normalizedSymbol, {
+            label: "Sin datos",
+            tone: "no-data",
+            currentPrice,
+            description: hydration.reason
+          }];
+        }
+
+        if (hydration?.status === "Error" || hydration?.status === "InvalidSymbol") {
+          return [normalizedSymbol, {
+            label: "Error",
+            tone: "error",
+            currentPrice,
+            description: hydration.reason
+          }];
+        }
+
+        if (snapshot != null || hydration?.currentPrice != null) {
+          return [normalizedSymbol, {
+            label: "Monitoreando",
+            tone: "monitoring",
+            currentPrice,
+            description: snapshot?.capturedAtUtc
+              ? `Snapshot ${formatDate(snapshot.capturedAtUtc)}`
+              : hydration?.reason
+          }];
+        }
+
+        return [normalizedSymbol, {
+          label: "Pendiente de actualizar",
+          tone: "pending",
+          currentPrice: null,
+          description: "Seleccionado en tu watchlist. Ejecutá una actualización para hidratar datos."
+        }];
+      })
+    );
+  }, [hydrationResultsBySymbol, latestSnapshotsBySymbol, userWatchlistSymbols, watchlistSignals]);
+  const watchlistHydrationSummary = useMemo(() => {
+    if (watchlistHydrationResult == null) {
+      return null;
+    }
+
+    return `Watchlist actualizada: ${watchlistHydrationResult.updatedCount} actualizados, ${watchlistHydrationResult.noDataCount} sin datos, ${watchlistHydrationResult.errorCount} errores.`;
+  }, [watchlistHydrationResult]);
   const selectedSparklinePrices = selectedSignal
     ? sparklinePrices[selectedSignal.symbol.toUpperCase()]
     : null;
@@ -117,14 +212,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    saveCustomWatchlists(customWatchlists);
-  }, [customWatchlists]);
+    saveUserWatchlist(userWatchlistSymbols);
+  }, [userWatchlistSymbols]);
 
   useEffect(() => {
-    if (!watchlists.some((watchlist) => watchlist.id === activeWatchlistId)) {
-      setActiveWatchlistId(allSignalsWatchlist.id);
-    }
-  }, [activeWatchlistId, watchlists]);
+    saveCollapsedSections(collapsedSections);
+  }, [collapsedSections]);
 
   useEffect(() => {
     const fallbackSymbol = filteredSignals[0]?.symbol ?? null;
@@ -197,6 +290,7 @@ export function App() {
       setUsingMock(state.isMock);
       await Promise.all([
         refreshSparklines(),
+        refreshMarketSnapshots(),
         refreshPerformancePreview(),
         refreshOutcomeSummary(),
         refreshSetupSummary(),
@@ -270,6 +364,14 @@ export function App() {
     }
   }
 
+  async function refreshMarketSnapshots() {
+    try {
+      setMarketSnapshots(await loadMarketSnapshots());
+    } catch {
+      setMarketSnapshots([]);
+    }
+  }
+
   async function refreshPerformancePreview() {
     try {
       const preview = await loadSignalPerformancePreview();
@@ -326,21 +428,48 @@ export function App() {
     }
   }
 
-  function handleSaveCustomWatchlist(watchlist: Watchlist) {
-    setCustomWatchlists((current) => {
-      const existingIndex = current.findIndex((item) => item.id === watchlist.id);
-      if (existingIndex < 0) {
-        return [...current, watchlist];
-      }
-
-      return current.map((item) => (item.id === watchlist.id ? watchlist : item));
-    });
+  function handleAddUserWatchlistSymbol(symbol: string) {
+    setUserWatchlistSymbols((current) => addWatchlistSymbol(current, symbol));
   }
 
-  function handleRemoveCustomWatchlist(id: string) {
-    setCustomWatchlists((current) => current.filter((watchlist) => watchlist.id !== id));
-    if (activeWatchlistId === id) {
-      setActiveWatchlistId(allSignalsWatchlist.id);
+  function handleRemoveUserWatchlistSymbol(symbol: string) {
+    setUserWatchlistSymbols((current) => removeWatchlistSymbol(current, symbol));
+  }
+
+  function handleToggleSection(id: DashboardSectionId) {
+    setCollapsedSections((current) => ({
+      ...current,
+      [id]: !current[id]
+    }));
+  }
+
+  async function handleHydrateWatchlist() {
+    if (manualActionInFlight.current || watchlistHydrationLoading) {
+      return;
+    }
+
+    manualActionInFlight.current = true;
+    setWatchlistHydrationLoading(true);
+    setLoadingAction("Actualizar watchlist");
+    setStatus({ text: "Actualizando watchlist...", tone: "idle" });
+
+    try {
+      const result = await hydrateWatchlist({ symbols: userWatchlistSymbols, force: false });
+      setWatchlistHydrationResult(result);
+      await loadDashboardData();
+      setStatus({
+        text: `Watchlist actualizada: ${result.updatedCount} actualizados, ${result.noDataCount} sin datos, ${result.errorCount} errores.`,
+        tone: result.errorCount > 0 ? "warn" : "ok"
+      });
+    } catch (error) {
+      setStatus({
+        text: error instanceof Error ? error.message : "Falló la actualización de watchlist",
+        tone: "error"
+      });
+    } finally {
+      manualActionInFlight.current = false;
+      setWatchlistHydrationLoading(false);
+      setLoadingAction(null);
     }
   }
 
@@ -382,11 +511,18 @@ export function App() {
         {lastAIBriefingAt ? <span className="timestamp">Último briefing IA {formatDateTime(lastAIBriefingAt)}</span> : null}
         {systemStatus?.lastCycleRunUtc ? <span className="timestamp">Scheduler {formatDate(systemStatus.lastCycleRunUtc)}</span> : null}
         {usingMock ? <span className="status warn">Vista previa</span> : null}
+        {briefing ? <span className="timestamp">Último snapshot {formatDate(briefing.generatedAtUtc)}</span> : null}
         {briefing ? <span className="timestamp">Última señal {formatDate(briefing.generatedAtUtc)}</span> : null}
       </section>
 
-      <p className="cost-awareness-note">Signals refresh automatically from persisted market snapshots. AI generation is manual.</p>
+      <p className="cost-awareness-note">Las señales se actualizan desde snapshots persistidos. La generación de IA es manual.</p>
 
+      <CollapsibleSection
+        id="market-context"
+        title="Contexto de mercado"
+        collapsed={collapsedSections["market-context"]}
+        onToggle={handleToggleSection}
+      >
       <section className="hero-grid">
         <InfoCard title="Contexto de mercado" value={briefing?.marketRegime ?? "Cargando"} icon={<TrendingUp size={18} />} />
         <TextCard title="Resumen" text={briefing?.summary ?? "Esperando datos del panel."} />
@@ -398,59 +534,120 @@ export function App() {
         <SignalGroup title="Pullbacks en seguimiento" tone="watch" icon={<Search size={17} />} signals={watchlistPullbacks} onSelect={setSelectedSymbol} />
         <SignalGroup title="Riesgos principales" tone="risk" icon={<ShieldAlert size={17} />} signals={topRisks} onSelect={setSelectedSymbol} />
       </section>
+      </CollapsibleSection>
 
-      <TopProfitOpportunitiesPanel signals={watchlistSignals} onSelectSymbol={setSelectedSymbol} />
-
-      <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
-
-      <SignalOutcomeSummaryPanel
-        loading={outcomeSummaryLoading}
-        summary={outcomeSummary}
-        unavailable={outcomeSummaryUnavailable}
-      />
-
-      <SetupPerformancePanel loading={setupSummaryLoading} summary={setupSummary} unavailable={setupSummaryUnavailable} />
-
-      <ScoreConfidencePerformancePanel
-        loading={scoreBucketSummaryLoading}
-        summary={scoreBucketSummary}
-        unavailable={scoreBucketSummaryUnavailable}
-      />
-
-      <SignalPerformancePreviewPanel preview={performancePreview} unavailable={performancePreviewUnavailable} />
-
-      <WatchlistSelector
-        watchlists={watchlists}
-        activeWatchlistId={activeWatchlist.id}
-        visibleCount={watchlistSignals.length}
-        totalCount={allSignals.length}
-        onSelect={setActiveWatchlistId}
-        onSaveCustom={handleSaveCustomWatchlist}
-        onRemoveCustom={handleRemoveCustomWatchlist}
-      />
-
-      <SignalFilterBar
-        filters={filters}
-        setupTypes={setupTypes}
-        visibleCount={filteredSignals.length}
-        totalCount={watchlistSignals.length}
-        onChange={setFilters}
-        onReset={() => setFilters(defaultSignalFilters)}
-      />
-
-      <section className="workspace">
-        <SignalsTable
-          signals={filteredSignals}
-          totalSignals={watchlistSignals.length}
-          hasLoadedSignals={allSignals.length > 0}
-          hasActiveFilters={hasActiveFilters}
-          selectedSymbol={selectedSignal?.symbol ?? null}
-          sparklinePrices={sparklinePrices}
-          onSelect={setSelectedSymbol}
-          onResetFilters={() => setFilters(defaultSignalFilters)}
+      <CollapsibleSection
+        id="my-watchlist"
+        title="Mi watchlist"
+        count={`${userWatchlistSymbols.length}/10`}
+        collapsed={collapsedSections["my-watchlist"]}
+        onToggle={handleToggleSection}
+      >
+        <MyWatchlistPanel
+          symbols={userWatchlistSymbols}
+          symbolStates={watchlistSymbolStates}
+          hydrationSummary={watchlistHydrationSummary}
+          hydrating={watchlistHydrationLoading}
+          onAdd={handleAddUserWatchlistSymbol}
+          onRemove={handleRemoveUserWatchlistSymbol}
+          onHydrate={handleHydrateWatchlist}
         />
-        <SignalDetailPanel signal={selectedSignal} sparklinePrices={selectedSparklinePrices} />
-      </section>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="top-profit-opportunities"
+        title="Mejores oportunidades por upside"
+        count={watchlistSignals.length}
+        collapsed={collapsedSections["top-profit-opportunities"]}
+        onToggle={handleToggleSection}
+      >
+        <TopProfitOpportunitiesPanel signals={watchlistSignals} onSelectSymbol={setSelectedSymbol} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="alert-center"
+        title="Centro de alertas"
+        count={alerts.length}
+        collapsed={collapsedSections["alert-center"]}
+        onToggle={handleToggleSection}
+      >
+        <AlertCenter alerts={alerts} onSelectSymbol={setSelectedSymbol} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="signal-outcomes"
+        title="Resultados de señales"
+        collapsed={collapsedSections["signal-outcomes"]}
+        onToggle={handleToggleSection}
+      >
+        <SignalOutcomeSummaryPanel
+          loading={outcomeSummaryLoading}
+          summary={outcomeSummary}
+          unavailable={outcomeSummaryUnavailable}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="setup-performance"
+        title="Performance por setup"
+        collapsed={collapsedSections["setup-performance"]}
+        onToggle={handleToggleSection}
+      >
+        <SetupPerformancePanel loading={setupSummaryLoading} summary={setupSummary} unavailable={setupSummaryUnavailable} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="score-confidence-performance"
+        title="Performance por score y confianza"
+        collapsed={collapsedSections["score-confidence-performance"]}
+        onToggle={handleToggleSection}
+      >
+        <ScoreConfidencePerformancePanel
+          loading={scoreBucketSummaryLoading}
+          summary={scoreBucketSummary}
+          unavailable={scoreBucketSummaryUnavailable}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="signal-performance-preview"
+        title="Preview de performance de señales"
+        collapsed={collapsedSections["signal-performance-preview"]}
+        onToggle={handleToggleSection}
+      >
+        <SignalPerformancePreviewPanel preview={performancePreview} unavailable={performancePreviewUnavailable} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        id="all-signals"
+        title="Todas las señales"
+        count={filteredSignals.length}
+        collapsed={collapsedSections["all-signals"]}
+        onToggle={handleToggleSection}
+      >
+        <SignalFilterBar
+          filters={filters}
+          setupTypes={setupTypes}
+          visibleCount={filteredSignals.length}
+          totalCount={watchlistSignals.length}
+          onChange={setFilters}
+          onReset={() => setFilters(defaultSignalFilters)}
+        />
+
+        <section className="workspace">
+          <SignalsTable
+            signals={filteredSignals}
+            totalSignals={watchlistSignals.length}
+            hasLoadedSignals={allSignals.length > 0}
+            hasActiveFilters={hasActiveFilters}
+            selectedSymbol={selectedSignal?.symbol ?? null}
+            sparklinePrices={sparklinePrices}
+            onSelect={setSelectedSymbol}
+            onResetFilters={() => setFilters(defaultSignalFilters)}
+          />
+          <SignalDetailPanel signal={selectedSignal} sparklinePrices={selectedSparklinePrices} />
+        </section>
+      </CollapsibleSection>
 
       <section className="briefing-lists">
         <ListCard title="Destacados" items={briefing?.highlights ?? []} />
@@ -569,6 +766,7 @@ function SignalsTable({
         <table>
           <thead>
             <tr>
+              <th>Precio</th>
               <th>Símbolo</th>
               <th>Tendencia</th>
               <th>Score</th>
@@ -590,7 +788,7 @@ function SignalsTable({
           <tbody>
             {signals.length === 0 ? (
               <tr>
-                <td className="table-empty" colSpan={16}>
+                <td className="table-empty" colSpan={17}>
                   {!hasLoadedSignals ? (
                     <div className="table-empty-state">
                       <strong>Todavía no hay señales cargadas.</strong>
@@ -619,6 +817,7 @@ function SignalsTable({
                   className={signal.symbol === selectedSymbol ? "selected" : ""}
                   onClick={() => onSelect(signal.symbol)}
                 >
+                  <td className="price-cell">{formatMoney(signal.currentPrice ?? signal.entry)}</td>
                   <td className="symbol-cell">{signal.symbol}</td>
                   <td className="sparkline-cell"><Sparkline prices={prices} width={96} height={28} /></td>
                   <td><Score value={signal.score} /></td>
