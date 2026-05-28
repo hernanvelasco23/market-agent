@@ -44,6 +44,7 @@ public sealed record SignalOutcomeItem(
     string Action,
     decimal Score,
     string Confidence,
+    decimal? CurrentPrice,
     decimal? RelativeStrengthVsSpy,
     decimal? RelativeVolume,
     decimal? ExtensionFromEma20Percent,

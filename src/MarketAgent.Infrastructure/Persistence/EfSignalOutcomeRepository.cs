@@ -105,6 +105,7 @@ public sealed class EfSignalOutcomeRepository : ISignalOutcomeRepository
                 row.Snapshot.Action,
                 row.Snapshot.Score,
                 row.Snapshot.Confidence,
+                row.Snapshot.Price,
                 row.Snapshot.RelativeStrengthVsSpy,
                 row.Snapshot.RelativeVolume,
                 row.Snapshot.ExtensionFromEma20Percent,
