@@ -16,7 +16,7 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
     );
   }
 
-  const latestPrice = getLatestPrice(sparklinePrices) ?? signal.entry;
+  const latestPrice = signal.currentPrice ?? getLatestPrice(sparklinePrices) ?? signal.entry;
   const ema20Extension = getEma20Extension(signal);
 
   return (
@@ -90,6 +90,7 @@ export function SignalDetailPanel({ signal, sparklinePrices }: SignalDetailPanel
         </div>
         <div className="detail-grid compact">
           <Metric label="Entrada / último" value={formatMoney(signal.entry ?? latestPrice)} />
+          <Metric label="Precio actual" value={formatMoney(latestPrice)} />
           <Metric label="Stop" value={formatMoney(signal.stop)} />
           <Metric label="Objetivo" value={formatMoney(signal.target ?? signal.takeProfit2)} />
           <Metric label="TP1" value={formatMoney(signal.takeProfit1)} />

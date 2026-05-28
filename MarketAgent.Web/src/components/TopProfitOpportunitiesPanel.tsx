@@ -34,6 +34,7 @@ export function TopProfitOpportunitiesPanel({
               type="button"
               onClick={() => onSelectSymbol(opportunity.signal.symbol)}
             >
+              <span className="profit-price">{formatMoney(opportunity.signal.currentPrice ?? opportunity.entryPoint)}</span>
               <span className="profit-symbol">{opportunity.signal.symbol}</span>
               <span className="profit-setup" title={opportunity.signal.setupType}>
                 {opportunity.signal.setupType}

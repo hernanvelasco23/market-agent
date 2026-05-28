@@ -18,6 +18,7 @@ export interface DashboardSignal {
   timeframe: string;
   confidence: string;
   reason: string;
+  currentPrice?: number | null;
   ema9?: number | null;
   ema20?: number | null;
   ema50?: number | null;
@@ -109,6 +110,7 @@ export interface ApiMarketSignal {
   timeframe: string;
   confidence: string;
   reason: string;
+  currentPrice?: number | null;
   ema9?: number | null;
   ema20?: number | null;
   ema50?: number | null;
@@ -157,6 +159,55 @@ export interface IngestionResult {
     reason: string;
     source?: string | null;
   }>;
+}
+
+export interface MarketSnapshotDto {
+  id: string;
+  symbol: string;
+  assetType: number;
+  price: number;
+  currency: string;
+  capturedAtUtc: string;
+  source: string;
+  volume?: number | null;
+  openPrice?: number | null;
+  highPrice?: number | null;
+  lowPrice?: number | null;
+  previousClose?: number | null;
+}
+
+export interface WatchlistHydrationRequest {
+  symbols: string[];
+  force?: boolean;
+}
+
+export type WatchlistHydrationStatus =
+  | "Updated"
+  | "SkippedFresh"
+  | "NoData"
+  | "Error"
+  | "InvalidSymbol"
+  | string;
+
+export interface WatchlistHydrationItemResult {
+  symbol: string;
+  status: WatchlistHydrationStatus;
+  reason: string;
+  snapshotCreated: boolean;
+  signalCreated: boolean;
+  lastSnapshotAtUtc?: string | null;
+  currentPrice?: number | null;
+}
+
+export interface WatchlistHydrationResult {
+  startedAtUtc: string;
+  finishedAtUtc: string;
+  requestedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  noDataCount: number;
+  errorCount: number;
+  results: WatchlistHydrationItemResult[];
 }
 
 export interface HistoricalCandle {
@@ -226,6 +277,7 @@ export interface SignalOutcomeItem {
   action: SignalAction;
   score: number;
   confidence: string;
+  currentPrice?: number | null;
   relativeStrengthVsSpy?: number | null;
   relativeVolume?: number | null;
   extensionFromEma20Percent?: number | null;

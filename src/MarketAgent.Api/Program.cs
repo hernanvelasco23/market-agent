@@ -7,6 +7,7 @@ using MarketAgent.Application.Models;
 using MarketAgent.Application.PriceIngestion;
 using MarketAgent.Application.Signals;
 using MarketAgent.Application.SystemCycle;
+using MarketAgent.Application.Watchlists;
 using MarketAgent.Infrastructure.AI;
 using MarketAgent.Infrastructure.Email;
 using MarketAgent.Infrastructure.Indicators;
@@ -70,6 +71,7 @@ builder.Services.AddScoped<IMarketBriefingGenerator, SemanticKernelMarketBriefin
 builder.Services.AddScoped<ITechnicalIndicatorService, TechnicalIndicatorService>();
 builder.Services.AddScoped<IMarketSignalAnalyzer, TechnicalMarketSignalAnalyzer>();
 builder.Services.AddScoped<IMarketSignalService, MarketSignalService>();
+builder.Services.AddScoped<IWatchlistHydrationService, WatchlistHydrationService>();
 builder.Services.AddScoped<ISignalOutcomeService, SignalOutcomeService>();
 builder.Services.AddScoped<ISignalPerformancePreviewService, SignalPerformancePreviewService>();
 builder.Services.AddScoped<IAlertEvaluationService, AlertEvaluationService>();
@@ -167,6 +169,17 @@ app.MapPost(
     async (IMarketSignalService marketSignalService, CancellationToken cancellationToken) =>
     {
         var result = await marketSignalService.GenerateAsync(cancellationToken);
+        return Results.Ok(result);
+    });
+
+app.MapPost(
+    "/api/watchlist/hydrate",
+    async (
+        WatchlistHydrationRequest request,
+        IWatchlistHydrationService watchlistHydrationService,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await watchlistHydrationService.HydrateAsync(request, cancellationToken);
         return Results.Ok(result);
     });
 
