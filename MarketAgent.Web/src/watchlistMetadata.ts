@@ -14,10 +14,10 @@ export const defaultUserWatchlist = [
   "TSLA",
   "MELI",
   "AMD",
+  "ASTS",
   "GGAL",
   "YPF",
-  "VIST",
-  "RGTI"
+  "VIST"
 ];
 
 const popularSymbols = new Set([
@@ -29,6 +29,7 @@ const popularSymbols = new Set([
   "META",
   "TSLA",
   "AMD",
+  "ASTS",
   "MELI",
   "GGAL",
   "YPF",
@@ -47,6 +48,7 @@ const rawTickerUniverse: WatchlistTickerMetadata[] = [
   { symbol: "QCOM", displayName: "Qualcomm", hasCedear: true, category: "AI / Semiconductors" },
   { symbol: "MRVL", displayName: "Marvell Technology", hasCedear: true, category: "AI / Semiconductors" },
   { symbol: "PLTR", displayName: "Palantir", hasCedear: true, category: "AI / Growth" },
+  { symbol: "ASTS", displayName: "AST SpaceMobile", hasCedear: false, category: "AI / Growth" },
   { symbol: "RGTI", displayName: "Rigetti Computing", hasCedear: false, category: "AI / Growth" },
   { symbol: "RKLB", displayName: "Rocket Lab", hasCedear: false, category: "AI / Growth" },
   { symbol: "ORCL", displayName: "Oracle", hasCedear: true, category: "Mega Cap Tech" },

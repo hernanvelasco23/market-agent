@@ -19,6 +19,8 @@ export interface DashboardSignal {
   confidence: string;
   reason: string;
   currentPrice?: number | null;
+  volume?: number | null;
+  averageVolume20?: number | null;
   ema9?: number | null;
   ema20?: number | null;
   ema50?: number | null;
@@ -111,6 +113,8 @@ export interface ApiMarketSignal {
   confidence: string;
   reason: string;
   currentPrice?: number | null;
+  volume?: number | null;
+  averageVolume20?: number | null;
   ema9?: number | null;
   ema20?: number | null;
   ema50?: number | null;
@@ -214,6 +218,7 @@ export interface HistoricalCandle {
   symbol: string;
   occurredAtUtc: string;
   close: number;
+  volume?: number | null;
 }
 
 export interface HistoricalMarketDataResult {

@@ -34,6 +34,7 @@ import { applySignalFilters, defaultSignalFilters, getAvailableSetupTypes, hasAc
 import type {
   BriefingResult,
   DashboardSignal,
+  HistoricalCandle,
   MarketSnapshotDto,
   SignalFilters,
   SignalOutcomeScoreBucketSummary,
@@ -64,6 +65,7 @@ export function App() {
   const [status, setStatus] = useState<Status>({ text: "Listo", tone: "idle" });
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
+  const [historicalCandles, setHistoricalCandles] = useState<HistoricalCandle[]>([]);
   const [sparklinePrices, setSparklinePrices] = useState<SparklinePricesBySymbol>({});
   const [performancePreview, setPerformancePreview] = useState<SignalPerformancePreviewResult | null>(null);
   const [performancePreviewUnavailable, setPerformancePreviewUnavailable] = useState(false);
@@ -84,6 +86,7 @@ export function App() {
   const [watchlistHydrationLoading, setWatchlistHydrationLoading] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState(() => loadCollapsedSections());
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [lastPriceRefreshAt, setLastPriceRefreshAt] = useState<Date | null>(null);
   const [lastSignalsGeneratedAt, setLastSignalsGeneratedAt] = useState<Date | null>(null);
   const [lastAIBriefingAt, setLastAIBriefingAt] = useState<Date | null>(null);
   const autoRefreshInFlight = useRef(false);
@@ -102,6 +105,10 @@ export function App() {
       return items;
     }, new Map());
   }, [marketSnapshots]);
+  const averageVolume20BySymbol = useMemo(
+    () => buildAverageVolume20BySymbol(historicalCandles),
+    [historicalCandles]
+  );
   const hydrationResultsBySymbol = useMemo(() => {
     return new Map(
       (watchlistHydrationResult?.results ?? []).map((item) => [item.symbol.toUpperCase(), item])
@@ -198,6 +205,18 @@ export function App() {
   const selectedSparklinePrices = selectedSignal
     ? sparklinePrices[selectedSignal.symbol.toUpperCase()]
     : null;
+  const freshestMarketSnapshotAt = useMemo(() => {
+    return marketSnapshots
+      .map((snapshot) => snapshot.capturedAtUtc)
+      .sort((left, right) => Date.parse(right) - Date.parse(left))[0] ?? null;
+  }, [marketSnapshots]);
+  const marketDataIsStale = useMemo(() => {
+    if (!freshestMarketSnapshotAt || !systemStatus?.isMarketOpen) {
+      return false;
+    }
+
+    return Date.now() - Date.parse(freshestMarketSnapshotAt) > 20 * 60 * 1000;
+  }, [freshestMarketSnapshotAt, systemStatus?.isMarketOpen]);
 
   useEffect(() => {
     refreshDashboard();
@@ -285,12 +304,17 @@ export function App() {
 
   async function loadDashboardData() {
       const state = await loadDashboard();
-      setBriefing(state.briefing);
+      const snapshots = await loadMarketSnapshots().catch(() => []);
+      const historical = await loadHistoricalCandles().catch(() => null);
+      const candles = historical?.candles ?? [];
+
+      setHistoricalCandles(candles);
+      setSparklinePrices(buildSparklinePricesBySymbol(candles));
+      setBriefing(applyLatestSnapshotMarketData(state.briefing, snapshots, candles));
+      setMarketSnapshots(snapshots);
       setSystemStatus(state.systemStatus ?? null);
       setUsingMock(state.isMock);
       await Promise.all([
-        refreshSparklines(),
-        refreshMarketSnapshots(),
         refreshPerformancePreview(),
         refreshOutcomeSummary(),
         refreshSetupSummary(),
@@ -300,6 +324,35 @@ export function App() {
       if (state.isMock) {
         setStatus({ text: "API no disponible. Se muestra una vista previa.", tone: "warn" });
       }
+  }
+
+  async function handleRefreshPrices() {
+    if (manualActionInFlight.current) {
+      return;
+    }
+
+    manualActionInFlight.current = true;
+    setLoadingAction("Actualizar precios");
+    setStatus({ text: "Actualizando precios...", tone: "idle" });
+
+    try {
+      const result = await hydrateWatchlist({ symbols: userWatchlistSymbols, force: true });
+      setWatchlistHydrationResult(result);
+      setLastPriceRefreshAt(new Date(result.finishedAtUtc));
+      await loadDashboardData();
+      setStatus({
+        text: `Precios actualizados: ${result.updatedCount}/${result.requestedCount}. Errores: ${result.errorCount}.`,
+        tone: result.errorCount > 0 ? "warn" : "ok"
+      });
+    } catch (error) {
+      setStatus({
+        text: error instanceof Error ? error.message : "Falló la actualización de precios",
+        tone: "error"
+      });
+    } finally {
+      manualActionInFlight.current = false;
+      setLoadingAction(null);
+    }
   }
 
   async function handleRunSignals() {
@@ -495,6 +548,7 @@ export function App() {
             disabled={aiBriefingDisabled}
             title={aiBriefingDisabled ? "AI briefing disabled by configuration" : undefined}
           />
+          <ActionButton icon={<RefreshCw size={16} />} label="Actualizar precios" onClick={handleRefreshPrices} loading={loadingAction === "Actualizar precios"} />
           <ActionButton icon={<RefreshCw size={16} />} label="Actualizar panel" onClick={refreshDashboard} loading={loadingAction === "Actualizar panel"} />
         </div>
       </header>
@@ -507,6 +561,8 @@ export function App() {
         <span className="status ok">Auto-refresh activo</span>
         <span className={getMarketStatusClassName(systemStatus)}>{getMarketStatusLabel(systemStatus)}</span>
         {lastUpdatedAt ? <span className="timestamp">Última actualización {formatDateTime(lastUpdatedAt)}</span> : null}
+        {lastPriceRefreshAt ? <span className="timestamp">Precios actualizados {formatDateTime(lastPriceRefreshAt)}</span> : null}
+        {freshestMarketSnapshotAt ? <span className={marketDataIsStale ? "status warn" : "timestamp"}>Snapshot de mercado {formatDate(freshestMarketSnapshotAt)}</span> : null}
         {lastSignalsGeneratedAt ? <span className="timestamp">Últimas señales {formatDateTime(lastSignalsGeneratedAt)}</span> : null}
         {lastAIBriefingAt ? <span className="timestamp">Último briefing IA {formatDateTime(lastAIBriefingAt)}</span> : null}
         {systemStatus?.lastCycleRunUtc ? <span className="timestamp">Scheduler {formatDate(systemStatus.lastCycleRunUtc)}</span> : null}
@@ -642,6 +698,8 @@ export function App() {
             hasActiveFilters={hasActiveFilters}
             selectedSymbol={selectedSignal?.symbol ?? null}
             sparklinePrices={sparklinePrices}
+            latestSnapshotsBySymbol={latestSnapshotsBySymbol}
+            averageVolume20BySymbol={averageVolume20BySymbol}
             onSelect={setSelectedSymbol}
             onResetFilters={() => setFilters(defaultSignalFilters)}
           />
@@ -736,6 +794,84 @@ function SignalGroup({
   );
 }
 
+function applyLatestSnapshotMarketData(
+  briefing: BriefingResult,
+  snapshots: MarketSnapshotDto[],
+  candles: HistoricalCandle[]
+): BriefingResult {
+  const latestSnapshotsBySymbol = snapshots.reduce<Map<string, MarketSnapshotDto>>((items, snapshot) => {
+    const symbol = snapshot.symbol.toUpperCase();
+    const current = items.get(symbol);
+    if (current == null || Date.parse(snapshot.capturedAtUtc) > Date.parse(current.capturedAtUtc)) {
+      items.set(symbol, snapshot);
+    }
+
+    return items;
+  }, new Map());
+  const averageVolume20BySymbol = buildAverageVolume20BySymbol(candles);
+
+  const enrichSignal = (signal: DashboardSignal): DashboardSignal => {
+    const snapshot = latestSnapshotsBySymbol.get(signal.symbol.toUpperCase());
+    const volume = snapshot?.volume ?? signal.volume ?? null;
+    const averageVolume20 = signal.averageVolume20 ?? averageVolume20BySymbol.get(signal.symbol.toUpperCase()) ?? null;
+    const relativeVolume = signal.relativeVolume ?? calculateRelativeVolume(volume, averageVolume20);
+
+    return {
+      ...signal,
+      currentPrice: snapshot?.price ?? signal.currentPrice,
+      volume,
+      averageVolume20,
+      relativeVolume
+    };
+  };
+
+  return {
+    ...briefing,
+    allSignals: briefing.allSignals.map(enrichSignal),
+    topOpportunities: briefing.topOpportunities.map(enrichSignal),
+    watchlistPullbacks: briefing.watchlistPullbacks.map(enrichSignal),
+    topRisks: briefing.topRisks.map(enrichSignal)
+  };
+}
+
+function buildAverageVolume20BySymbol(candles: HistoricalCandle[]) {
+  const grouped = candles.reduce<Record<string, HistoricalCandle[]>>((items, candle) => {
+    if (candle.volume == null || !Number.isFinite(candle.volume) || candle.volume <= 0) {
+      return items;
+    }
+
+    const symbol = candle.symbol.toUpperCase();
+    items[symbol] = [...(items[symbol] ?? []), candle];
+    return items;
+  }, {});
+
+  return new Map(
+    Object.entries(grouped)
+      .map(([symbol, symbolCandles]) => {
+        const latestCandles = symbolCandles
+          .slice()
+          .sort((left, right) => Date.parse(left.occurredAtUtc) - Date.parse(right.occurredAtUtc))
+          .slice(-20);
+
+        if (latestCandles.length < 20) {
+          return null;
+        }
+
+        return [
+          symbol,
+          latestCandles.reduce((sum, candle) => sum + (candle.volume ?? 0), 0) / latestCandles.length
+        ] as const;
+      })
+      .filter((item): item is readonly [string, number] => item != null)
+  );
+}
+
+function calculateRelativeVolume(volume?: number | null, averageVolume20?: number | null) {
+  return volume != null && volume > 0 && averageVolume20 != null && averageVolume20 > 0
+    ? volume / averageVolume20
+    : null;
+}
+
 function SignalsTable({
   signals,
   totalSignals,
@@ -743,6 +879,8 @@ function SignalsTable({
   hasActiveFilters,
   selectedSymbol,
   sparklinePrices,
+  latestSnapshotsBySymbol,
+  averageVolume20BySymbol,
   onSelect,
   onResetFilters
 }: {
@@ -752,6 +890,8 @@ function SignalsTable({
   hasActiveFilters: boolean;
   selectedSymbol: string | null;
   sparklinePrices: SparklinePricesBySymbol;
+  latestSnapshotsBySymbol: Map<string, MarketSnapshotDto>;
+  averageVolume20BySymbol: Map<string, number>;
   onSelect: (symbol: string) => void;
   onResetFilters: () => void;
 }) {
@@ -810,6 +950,11 @@ function SignalsTable({
             ) : null}
             {signals.map((signal) => {
               const prices = sparklinePrices[signal.symbol.toUpperCase()];
+              const symbol = signal.symbol.toUpperCase();
+              const latestSnapshot = latestSnapshotsBySymbol.get(symbol);
+              const volume = signal.volume ?? latestSnapshot?.volume ?? null;
+              const averageVolume20 = signal.averageVolume20 ?? averageVolume20BySymbol.get(symbol) ?? null;
+              const relativeVolume = signal.relativeVolume ?? calculateRelativeVolume(volume, averageVolume20);
 
               return (
                 <tr
@@ -827,7 +972,7 @@ function SignalsTable({
                   <td>{formatConfidenceLabel(signal.confidence)}</td>
                   <td>{signal.timeframe}</td>
                   <td><SignalMetric value={signal.relativeStrengthVsSpy} kind="rs" suffix="%" /></td>
-                  <td><SignalMetric value={signal.relativeVolume} kind="rvol" /></td>
+                  <td><SignalMetric value={relativeVolume} kind="rvol" title={formatVolumeTooltip(volume, averageVolume20)} /></td>
                   <td><SignalMetric value={getEma20Extension(signal)} kind="ext" suffix="%" /></td>
                   <td>{formatNumber(signal.rsi14)}</td>
                   <td>{formatMoney(signal.ema9)}</td>
@@ -873,13 +1018,15 @@ function Pill({ value }: { value: string }) {
 function SignalMetric({
   value,
   kind,
-  suffix
+  suffix,
+  title
 }: {
   value?: number | null;
   kind: "rs" | "rvol" | "ext";
   suffix?: string;
+  title?: string;
 }) {
-  return <span className={`metric-chip ${metricTone(value, kind)}`}>{formatMetric(value, suffix)}</span>;
+  return <span className={`metric-chip ${metricTone(value, kind)}`} title={title}>{formatMetric(value, suffix)}</span>;
 }
 
 function metricTone(value: number | null | undefined, kind: "rs" | "rvol" | "ext") {
@@ -959,4 +1106,19 @@ function formatMetric(value?: number | null, suffix = "") {
 
 function getEma20Extension(signal: DashboardSignal) {
   return signal.extensionFromEma20Percent ?? signal.distanceFromEma20Percent;
+}
+
+function formatVolumeTooltip(volume?: number | null, averageVolume20?: number | null) {
+  if (volume == null || averageVolume20 == null) {
+    return undefined;
+  }
+
+  return `Volumen ${formatCompactNumber(volume)} / promedio 20d ${formatCompactNumber(averageVolume20)}`;
+}
+
+function formatCompactNumber(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 2
+  }).format(value);
 }

@@ -133,7 +133,10 @@ if (!app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 if (allowedCorsOrigins.Length > 0)
 {
